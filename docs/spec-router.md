@@ -1,6 +1,6 @@
 ---
 spec_id: spec-router
-title: 仕様書ルーティングマップ (Spec Router)
+title: 仕様書ルーティングマップ
 layer: 1
 category: index
 status: stable
@@ -9,27 +9,27 @@ target_files:
 dependencies:
   - agents-guideline
 ---
+# 仕様書ルーティングマップ
 
-# {{PROJECT_NAME}} - 仕様書ルーティングマップ (Spec Router)
 <!-- @spec:spec-router -->
 
-本ドキュメントは、プロジェクト全体の**仕様書インデックス正本（SSOT）**である。
-各仕様書の配置パス、主要 `@spec` タグ、対象成果物、および仕様間の依存関係をマッピングする。
+プロジェクト全体の仕様書インデックス正本（SSOT）。部分読込時は以下の主タグまたはセクションサブタグを `grep` して行番号を特定すること (**MUST**)。
 
 ---
 
-## 仕様書ルーティングマップ (Spec Routing Map)
+## 1. 仕様書ルーティング ＆ サブタグ一覧
 
-| Layer | 仕様書 (Path) | 主要 `@spec` タグ | 対象ファイル (Scope) | 依存仕様 (`dependencies`) |
-| :---: | :--- | :--- | :--- | :--- |
-| **0** | [AGENTS.md](../AGENTS.md) | `@spec:agents-guideline` | プロジェクト全体 | - |
-| **1** | [core-rules.md](core-rules.md) | `@spec:core-rules` | プロジェクト全体 | `agents-guideline` |
-| **1** | [spec-router.md](spec-router.md) | `@spec:spec-router` | `docs/**/*.md` | `agents-guideline` |
-| **1** | [overview.md](overview.md) | `@spec:system-architecture` | `src/` | `core-rules` |
-| **1** | [architecture/domain-rules.md](architecture/domain-rules.md) | `@spec:domain-rules` | `src/` | `core-rules`, `system-architecture` |
-| **1** | [specs/_template.md](specs/_template.md) | `@spec:spec-template` | `docs/specs/*.md` | `core-rules`, `system-architecture` |
+<!-- @spec:spec-routing-table -->
 
-<!--
-【新規機能仕様追加時の登録フォーマット】
-| 1 | [specs/<feature-id>.md](specs/<feature-id>.md) | `@spec:<feature-id>` | `<対象コードパス>`, `<対象テストパス>` | `invincible-rules`, `system-architecture` |
--->
+新規コンポーネント仕様書（`docs/components/<id>.md`）を追加した際は、必ず本表に行を追加し、Frontmatterおよびファイル内のサブタグ（`component-<id>-scope`, `component-<id>-interface`, `component-<id>-contract`, `component-<id>-verification`）と完全一致させること (**MUST**)。
+
+| Layer | 仕様書 | 主タグ | セクションサブタグ | 対象スコープ | 依存仕様 |
+| :---: | :--- | :--- | :--- | :--- | :--- |
+| **0** | [AGENTS.md](../AGENTS.md) | `@spec:agents-guideline` | `agent-three-layer-structure`, `agent-invincible-rules`, `agent-context-retrieval`, `agent-task-execution` | `AGENTS.md` | `-` |
+| **1** | [core-rules.md](core-rules.md) | `@spec:core-rules` | `architecture-and-security-rules`, `lifecycle-and-test-rules` | `**/*` | `agents-guideline` |
+| **1** | [spec-router.md](spec-router.md) | `@spec:spec-router` | `spec-routing-table` | `docs/**/*.md` | `agents-guideline` |
+| **1** | [system/overview.md](system/overview.md) | `@spec:system-overview` | `system-purpose`, `system-scope` | `README.md` | `core-rules` |
+| **1** | [system/domain-rules.md](system/domain-rules.md) | `@spec:domain-rules` | `domain-glossary`, `domain-invariants` | `**/*` | `core-rules`, `system-overview` |
+| **1** | [system/architecture.md](system/architecture.md) | `@spec:system-architecture` | `architecture-diagram`, `component-map`, `data-flow` | `**/*` | `core-rules`, `system-overview`, `domain-rules` |
+| **1** | [system/tech-stack.md](system/tech-stack.md) | `@spec:tech-stack` | `runtime-stack`, `directory-structure`, `verification-commands` | `**/*` | `core-rules`, `system-architecture` |
+| **1** | [components/_template.md](components/_template.md) | `@spec:component-template` | `component-template-schema`, `component-template-scope`, `component-template-interface`, `component-template-contract`, `component-template-verification` | `docs/components/*.md` | `core-rules`, `domain-rules`, `system-architecture`, `tech-stack` |

@@ -1,0 +1,33 @@
+# AIDD Workflow & Generated Views (Non-SSOT)
+diff_summary_for_agent.txt
+docs/**/*.html
+*.spec.html
+
+# Secrets & Environment Variables
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# OS & Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*~
+
+# Common Build / Runtime Caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+venv/
+node_modules/
+dist/
+build/
+target/
+*.log
