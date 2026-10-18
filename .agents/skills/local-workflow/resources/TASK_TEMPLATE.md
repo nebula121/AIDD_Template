@@ -1,3 +1,12 @@
+---
+task_id: "{{TASK_ID}}"
+title: "{{TASK_TITLE}}"
+status: "in-progress"
+created_at: "{{CREATED_DATE}}"
+branch: "{{BRANCH_NAME}}"
+labels:
+  - "ai-generated"
+---
 # タスク仕様書: {{TASK_TITLE}}
 
 - **ステータス**: 🟡 進行中
@@ -33,3 +42,6 @@
 
 - 検証コマンド: 
 - 期待結果: 
+
+---
+<sub>※ 本ドキュメントは AI Agent (Antigravity) により自律生成されました。内容の確認・検証および最終承認の責任は人間の開発者が担います。</sub>

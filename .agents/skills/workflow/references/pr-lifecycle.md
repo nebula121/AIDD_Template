@@ -47,13 +47,15 @@ Pull Requestを作成する前に、以下の4つの条件をすべて満たし�
    - ※ `git push --force` (`-f`) は絶対禁止 (**MUST NOT**)。
 2. **PR本文の生成とIssue連動**:
    - `.agents/skills/workflow/resources/PULL_REQUEST_TEMPLATE.md` の構造に従って本文を作成する。
+   - タイトルに `[AI]` 等の接頭辞は付けず、クリーンなConventional Commitsとする (**MUST**)。
    - 本文末尾に `Closes #XXX`（対象GitHub Issue番号）を必ず記載し、マージ時の自動クローズを連携させる (**MUST**)。
+   - 本文最下部にテンプレート規定の共通フッター（`<sub>※ 本ドキュメントは AI Agent...</sub>`）を含める (**MUST**)。
      - **Summary**: 実装内容の簡潔な要約。
      - **Changes**: 変更箇所の詳細と設計判断の理由。
      - **Verification**: 実行したテスト・Lint結果の事実ベース報告。
      - **Follow-ups**: スコープ外の課題や今後のタスク。
 3. **PR起票とレビュー依頼**:
-   - `github-mcp-server` の `create_pull_request`（または `gh pr create`）でPRを作成する。
+   - `gh pr create --title "..." --body-file "..." --label "ai-generated"`（または `github-mcp-server` の `create_pull_request`）を実行し、必ず `--label "ai-generated"` を付与してPRを作成する (**MUST**)。
    - レビュー依頼や対話的な申し送り（Needs Review）は、PR本文に含めず PRコメント（`add_issue_comment`）として別途投稿する。
 
 ---

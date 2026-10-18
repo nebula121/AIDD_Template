@@ -92,11 +92,21 @@ def main():
         if os.path.exists(template_path):
             with open(template_path, "r", encoding="utf-8") as f:
                 template_content = f.read()
-            task_content = template_content.replace("{{TASK_TITLE}}", task_title)
+            task_content = template_content.replace("{{TASK_ID}}", task_name)
+            task_content = task_content.replace("{{TASK_TITLE}}", task_title)
             task_content = task_content.replace("{{CREATED_DATE}}", today_str)
             task_content = task_content.replace("{{BRANCH_NAME}}", branch_name)
         else:
             task_content = (
+                f"---\n"
+                f"task_id: \"{task_name}\"\n"
+                f"title: \"{task_title}\"\n"
+                f"status: \"in-progress\"\n"
+                f"created_at: \"{today_str}\"\n"
+                f"branch: \"{branch_name}\"\n"
+                f"labels:\n"
+                f"  - \"ai-generated\"\n"
+                f"---\n"
                 f"# タスク仕様書: {task_title}\n\n"
                 f"- **ステータス**: 🟡 進行中\n"
                 f"- **作成日**: {today_str}\n"
@@ -104,7 +114,9 @@ def main():
                 f"## 1. Goal (目的・完了条件)\n\n"
                 f"## 2. Context (背景・仕様参照)\n\n"
                 f"## 3. Technical Details (技術要件・制約)\n\n"
-                f"## 4. Verification (検証手順)\n"
+                f"## 4. Verification (検証手順)\n\n"
+                f"---\n"
+                f"<sub>※ 本ドキュメントは AI Agent (Antigravity) により自律生成されました。内容の確認・検証および最終承認の責任は人間の開発者が担います。</sub>\n"
             )
 
         with open(task_file_path, "w", encoding="utf-8") as f:

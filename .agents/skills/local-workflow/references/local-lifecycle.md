@@ -8,13 +8,15 @@
 
 1. **タスクの命名規則**:
    - タスク識別子は、3桁の連番またはカテゴリプレフィックスを推奨（例: `001-setup-auth`, `002-add-user-model`, `task-fix-parser`）。
+   - **タイトル規約**: タイトルに `[AI]` や絵文字等の接頭辞（Prefix）は付けず、クリーンな日本語タイトルとする (**MUST**)。
 2. **スクリプトによる自動初期化**:
-   - 以下のスクリプトを実行すると、`docs/tasks/` および `docs/tasks/completed/` が自動作成され、タスク文書の生成と作業ブランチの作成・チェックアウトが一括で実行される。
+   - 以下のスクリプトを実行すると、`docs/tasks/` および `docs/tasks/completed/` が自動作成され、Frontmatter（`labels: ["ai-generated"]`）と共通免責フッターを含んだタスク文書の生成と作業ブランチの作成・チェックアウトが一括で実行される。
    ```bash
    python .agents/skills/local-workflow/scripts/start_task_branch.py -t 001-setup-auth --title "認証機能の基盤構築"
    ```
 3. **タスク文書（`docs/tasks/<task>.md`）の編集**:
    - 生成されたタスク文書内の Goal（受入条件）、Context（仕様リンク）、Technical Details（制約）、Verification（検証手順）を明確化してから実装を開始する。
+   - 文書最下部の共通免責フッター（`<sub>※ 本ドキュメントは AI Agent...</sub>`）を維持すること。
 
 ---
 
@@ -28,7 +30,7 @@ python .agents/skills/local-workflow/scripts/commit_wip.py -m "作業内容の�
 
 ---
 
-## 3. Walkthrough提示と人間へのマージ承認要請
+## 3. Walkthrough Artifact 生成と人間へのマージ承認要請
 
 実装および自律テスト（[self-correction.md](self-correction.md)）が全件通過した後、エージェントは直ちにマージを行わず、**必ず人間に成果物の確認・マージ承認を求める**。
 
@@ -37,13 +39,11 @@ python .agents/skills/local-workflow/scripts/commit_wip.py -m "作業内容の�
    python .agents/skills/local-workflow/scripts/generate_walkthrough.py
    ```
    - 生成された `diff_summary_for_agent.txt` を読み込み、変更ファイルと行数を把握する。
-2. **チャット上でのWalkthrough提示**:
-   - 以下の構造でチャットに明確かつ簡潔に報告する：
-     - **概要**: 何を解決・実装したか
-     - **変更内容**: どのファイルをどのように修正したか（設計判断を含む）
-     - **検証結果**: 実行したテスト・Lintの結果（全件パスの事実）
-     - **派生課題**: スコープ外の課題や今後のタスク
-     - **承認要請**: **「上記の実装と検証が完了しました。ベースブランチ（main）へのマージを実行してよろしいですか？」** と明示的に確認する。
+2. **Walkthrough Artifact の作成 (`walkthrough.md`)**:
+   - `write_to_file` を用い、`<appDataDir>\brain\<conversation-id>\walkthrough.md` を作成する。
+   - `ArtifactMetadata` には `UserFacing: true`, `RequestFeedback: true` を指定し、UI上に「Proceed」ボタンを表示させてマージ承認を要請する。
+   - 内容には、概要、変更内容（設計判断を含む）、検証結果（全件パスの事実）、派生課題を含める。
+   - チャット上では長大な全文を再要約せず、サマリーと Artifact へのリンクのみを案内する。
 
 ---
 
