@@ -12,6 +12,7 @@ def main():
     parser = argparse.ArgumentParser(description="Create WIP commit with secret scanning for local workflow.")
     parser.add_argument("-m", "--message", required=True, help="Commit message description")
     parser.add_argument("-t", "--task", required=False, default=None, help="Target task name or ID (optional)")
+    parser.add_argument("-p", "--paths", nargs="*", default=None, help="Specific paths to stage and commit (default: all via git add -A)")
 
     args = parser.parse_args()
 
@@ -21,7 +22,10 @@ def main():
 
     # 1. Stage changes first
     print("Staging changes...")
-    run_command(["git", "add", "-A"])
+    if args.paths:
+        run_command(["git", "add"] + args.paths)
+    else:
+        run_command(["git", "add", "-A"])
     print("=== Staged Files ===")
     res = run_command(["git", "diff", "--cached", "--name-only"])
     staged_files = res.stdout.strip() if res.stdout else ""
