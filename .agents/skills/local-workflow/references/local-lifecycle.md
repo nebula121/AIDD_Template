@@ -10,13 +10,13 @@
    - タスク識別子は、3桁の連番またはカテゴリプレフィックスを推奨（例: `001-setup-auth`, `002-add-user-model`, `task-fix-parser`）。
    - **タイトル規約**: タイトルに `[AI]` や絵文字等の接頭辞（Prefix）は付けず、クリーンな日本語タイトルとする (**MUST**)。
 2. **スクリプトによる自動初期化**:
-   - 以下のスクリプトを実行すると、`docs/tasks/` および `docs/tasks/completed/` が自動作成され、Frontmatter（`labels: ["ai-generated"]`）と共通免責フッターを含んだタスク文書の生成と作業ブランチの作成・チェックアウトが一括で実行される。
+   - 以下のスクリプトを実行すると、`docs/tasks/` および `docs/tasks/completed/` が自動作成され、Frontmatter（`labels: ["ai-generated"]`）と共通フッターを含んだタスク文書の生成と作業ブランチの作成・チェックアウトが一括で実行される。
    ```bash
    python .agents/skills/local-workflow/scripts/start_task_branch.py -t 001-setup-auth --title "認証機能の基盤構築"
    ```
 3. **タスク文書（`docs/tasks/<task>.md`）の編集**:
    - 生成されたタスク文書内の Goal（受入条件）、Context（仕様リンク）、Technical Details（制約）、Verification（検証手順）を明確化してから実装を開始する。
-   - 文書最下部の共通免責フッター（`<sub>※ 本ドキュメントは AI Agent...</sub>`）を維持すること。
+   - 文書最下部の共通フッター（`<sub>※ 本ドキュメントは AI Agent (Antigravity) により自律生成されました。</sub>`）を維持すること。
 
 ---
 

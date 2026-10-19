@@ -44,4 +44,4 @@ labels:
 - 期待結果: 
 
 ---
-<sub>※ 本ドキュメントは AI Agent (Antigravity) により自律生成されました。内容の確認・検証および最終承認の責任は人間の開発者が担います。</sub>
+<sub>※ 本ドキュメントは AI Agent (Antigravity) により自律生成されました。</sub>

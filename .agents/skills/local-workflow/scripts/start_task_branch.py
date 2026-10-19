@@ -116,7 +116,7 @@ def main():
                 f"## 3. Technical Details (技術要件・制約)\n\n"
                 f"## 4. Verification (検証手順)\n\n"
                 f"---\n"
-                f"<sub>※ 本ドキュメントは AI Agent (Antigravity) により自律生成されました。内容の確認・検証および最終承認の責任は人間の開発者が担います。</sub>\n"
+                f"<sub>※ 本ドキュメントは AI Agent (Antigravity) により自律生成されました。</sub>\n"
             )
 
         with open(task_file_path, "w", encoding="utf-8") as f:
