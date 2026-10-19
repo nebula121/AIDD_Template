@@ -17,3 +17,6 @@ assignees: ''
 
 ## Verification (検証手順)
 <!-- エージェント（または開発者）が実装完了を自己確認するための手順。実行すべきテストや、確認すべきログ出力などを具体的に記述してください。 -->
+
+---
+<sub>Generated with AI Agent ({{HARNESS_NAME}})</sub>

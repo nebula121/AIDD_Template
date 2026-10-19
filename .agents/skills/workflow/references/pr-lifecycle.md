@@ -19,18 +19,24 @@ Pull Requestを作成する前に、以下の4つの条件をすべて満たし�
 
 ---
 
-## 2. 差分サマリー抽出 (Token Economy)
+## 2. 差分サマリー抽出と Walkthrough Artifact 生成
 
-巨大な `git diff` をそのままコンテキストに読み込むのを防ぐため、専用スクリプトでサマリーテキストを生成する。
+巨大な `git diff` をそのままコンテキストに読み込むのを防ぐため、専用スクリプトでサマリーテキストを生成し、Antigravity Artifact として完了報告を作成する。
 
-```bash
-python .agents/skills/workflow/scripts/generate_walkthrough.py
-# 基準ブランチが main 以外の場合:
-# python .agents/skills/workflow/scripts/generate_walkthrough.py --base-branch develop
-```
+1. **差分要約の生成**:
+   ```bash
+   python .agents/skills/workflow/scripts/generate_walkthrough.py
+   # 基準ブランチが main 以外の場合:
+   # python .agents/skills/workflow/scripts/generate_walkthrough.py --base-branch develop
+   ```
+   - スクリプトにより `diff_summary_for_agent.txt` が生成される。
+   - エージェントはこの要約（変更ファイル一覧と行数統計）を読み込み、最小限のトークンで変更の全容を把握する。
 
-- スクリプトにより `diff_summary_for_agent.txt` が生成される。
-- エージェントはこの要約（変更ファイル一覧と行数統計）を読み込み、最小限のトークンで変更の全容を把握して Walkthrough や PR本文を作成する。
+2. **Walkthrough Artifact の作成 (`walkthrough.md`)**:
+   - `write_to_file` を用い、`<appDataDir>\brain\<conversation-id>\walkthrough.md` を作成する。
+   - `ArtifactMetadata` には `UserFacing: true`, `RequestFeedback: false`（またはPR作成承認を求める場合は `true`）を指定する。
+   - 内容には、変更概要、変更ファイル一覧（diff要約）、テスト・Lint実行エビデンス（PASSログ）、残課題を含める。
+   - **チャット上への全文再出力は絶対禁止 (**MUST NOT**)**。チャットには要約と Artifact へのリンクのみを案内する。
 
 ---
 
@@ -39,14 +45,17 @@ python .agents/skills/workflow/scripts/generate_walkthrough.py
 1. **作業ブランチのPush**:
    - 安全確認完了後、作業ブランチをリモートにPushする（例: `git push -u origin <branch-name>`）。
    - ※ `git push --force` (`-f`) は絶対禁止 (**MUST NOT**)。
-2. **PR本文の生成**:
+2. **PR本文の生成とIssue連動**:
    - `.agents/skills/workflow/resources/PULL_REQUEST_TEMPLATE.md` の構造に従って本文を作成する。
+   - タイトルに `[AI]` 等の接頭辞は付けず、クリーンなConventional Commitsとする (**MUST**)。
+   - 本文末尾に `Closes #XXX`（対象GitHub Issue番号）を必ず記載し、マージ時の自動クローズを連携させる (**MUST**)。
+   - 本文最下部にテンプレート規定の共通フッター（`<sub>Generated with AI Agent ({{HARNESS_NAME}})</sub>`、ハーネス名を反映）を含める (**MUST**)。
      - **Summary**: 実装内容の簡潔な要約。
      - **Changes**: 変更箇所の詳細と設計判断の理由。
      - **Verification**: 実行したテスト・Lint結果の事実ベース報告。
      - **Follow-ups**: スコープ外の課題や今後のタスク。
 3. **PR起票とレビュー依頼**:
-   - `github-mcp-server` の `create_pull_request`（または `gh pr create`）でPRを作成する。
+   - `gh pr create --title "..." --body-file "..." --label "ai-generated"`（または `github-mcp-server` の `create_pull_request`）を実行し、必ず `--label "ai-generated"` を付与してPRを作成する (**MUST**)。
    - レビュー依頼や対話的な申し送り（Needs Review）は、PR本文に含めず PRコメント（`add_issue_comment`）として別途投稿する。
 
 ---

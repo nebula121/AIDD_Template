@@ -1,3 +1,12 @@
+---
+task_id: "{{TASK_ID}}"
+title: "{{TASK_TITLE}}"
+status: "in-progress"
+created_at: "{{CREATED_DATE}}"
+branch: "{{BRANCH_NAME}}"
+labels:
+  - "ai-generated"
+---
 # タスク仕様書: {{TASK_TITLE}}
 
 - **ステータス**: 🟡 進行中
@@ -33,3 +42,6 @@
 
 - 検証コマンド: 
 - 期待結果: 
+
+---
+<sub>Generated with AI Agent ({{HARNESS_NAME}})</sub>

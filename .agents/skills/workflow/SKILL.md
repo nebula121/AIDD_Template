@@ -1,6 +1,6 @@
 ---
 name: AI Development Workflow
-description: AIエージェントの開発ワークフロー（ブランチ作成から自律テスト・自己修復、差分要約、PR起票、マージ後クリーンアップまで）の標準ガイドライン。Issue着手時に必ず参照すること。
+description: GitHub Issue起票・作業ブランチ作成から自律テスト・自己修復、Artifacts（計画書・Walkthrough）生成、PR起票、マージ後クリーンアップまでを一貫して行う標準開発ワークフロー。タスク着手時に必ず参照すること。
 ---
 
 # AI開発ワークフロー規定 (AI Development Workflow)
@@ -9,7 +9,9 @@ description: AIエージェントの開発ワークフロー（ブランチ作�
 
 > [!IMPORTANT]
 > - **成果物言語**: AIが作成する成果物ドキュメント（Implementation Plan、Walkthrough、PR本文、Issue等）は、原則として**日本語**で記述すること。
-> - **調査と実装の分離**: ユーザー指示が「確認・調査」である場合はコードやドキュメントを変更せず結果報告に留めること。変更作業は、事前に明示的な修正指示と実装計画の承認を得てから作業ブランチ上で行うこと。
+> - **調査と実装の分離**: ユーザー指示が「確認・調査」である場合はコードやドキュメントを変更せず結果報告に留めること。
+> - **不可侵ガードレール（ブランチ保護）**: コードや仕様書を1文字でも編集する前に、必ず作業ブランチに切り替えること (**MUST**)。baseブランチ（`main` 等）上での直接編集・直接コミット・直接Pushは絶対禁止 (**MUST NOT**)。
+> - **Artifacts原則**: 実装計画書（`implementation_plan.md`）および完了報告（`walkthrough.md`）は必ず Antigravity Artifacts ディレクトリ（`<appDataDir>\brain\<conversation-id>\`）に出力し、チャット本文への長大な全文再要約・二重出力を禁じる (**MUST NOT**)。
 > - **Ponytail原則**: 仕様書にない不要な抽象化や過剰なボイラープレートを排除し、最短・最善の最小差分で実装すること。
 
 ---
@@ -17,58 +19,92 @@ description: AIエージェントの開発ワークフロー（ブランチ作�
 ## ワークフロー全体図 (Lifecycle Overview)
 
 ```mermaid
-flowchart LR
-    Branch["1. ブランチ開始<br/>(start_feature_branch)"] --> Impl["2. 実装 & WIPコミット<br/>(commit_wip)"]
-    Impl --> Test["3. テスト & 自己修復<br/>(self-correction)"]
-    Test --> PR["4. 差分要約 & PR作成<br/>(pr-lifecycle)"]
-    PR --> Review["5. レビュー & クリーンアップ<br/>(cleanup_branch)"]
+flowchart TD
+    Step1["1. 調査 & 実装計画作成<br/>(Artifact: implementation_plan.md)"] --> Approve{"ユーザー計画承認<br/>(Proceedボタン)"}
+    Approve -- 承認 --> Step2["2. Issue起票 & ブランチ作成<br/>(create_issue / start_feature_branch)"]
+    Step2 --> Step3["3. 実装 & WIPコミット<br/>(commit_wip)"]
+    Step3 --> Step4["4. テスト & 自己修復<br/>(self-correction)"]
+    Step4 --> Step5["5. 差分要約 & Walkthrough生成<br/>(Artifact: walkthrough.md)"]
+    Step5 --> Step6["6. PR起票 & マージ後クリーンアップ<br/>(create_pull_request / cleanup_branch)"]
+    Approve -- 修正指示 --> Step1
 ```
 
 ---
 
-## 1. 作業ブランチ作成とWIPコミット
+## 1. 調査と実装計画書（Artifact: implementation_plan.md）
 
-* **作業ブランチの作成**:
-  * 最新のベースブランチ（`main` 等）から作業ブランチを作成する。未コミット変更がある場合は `--auto-stash` を付与可能。
+* **調査と要求分析**:
+  * 関連仕様書（`docs/spec-router.md`）やコードを調査し、変更対象と受入条件を特定する。
+* **実装計画書の Artifact 出力**:
+  * `write_to_file` を用い、`<appDataDir>\brain\<conversation-id>\implementation_plan.md` に計画書を作成する。
+  * `ArtifactMetadata` には `UserFacing: true`, `RequestFeedback: true` を指定し、UI上に「Proceed」ボタンを表示させる。
+* **チャット案内ルール**:
+  * チャット本文で計画全文を再要約せず、Artifact へのファイルリンクと判断・確認が必要な論点のみを簡潔に提示してユーザーの承認を仰ぐ。
+
+---
+
+## 2. GitHub Issue起票と作業ブランチ作成
+
+* **GitHub Issue の起票 (MUST)**:
+  * 既存Issue番号（例: `#42`）が指定されていない場合、計画承認後直ちに [.agents/skills/workflow/resources/ISSUE_TEMPLATE.md](resources/ISSUE_TEMPLATE.md) のフォーマットに従って GitHub Issue を起票する。
+  * **タイトル規約**: タイトルに `[AI]` や絵文字等の接頭辞（Prefix）は付けず、クリーンなConventional Commitsまたは日本語タイトルとする (**MUST**)。
+  * **AI識別ラベル**: 必ず `--label "ai-generated"` を付与して起票する (**MUST**)。
+  * **共通フッター**: 本文末尾にテンプレート規定の共通フッター（`<sub>Generated with AI Agent ({{HARNESS_NAME}})</sub>`、実行環境のハーネス名を反映）を含める (**MUST**)。
+  * MCPツール `create_issue` または `gh issue create --title "..." --body-file "..." --label "ai-generated"` を使用し、採番されたIssue番号を取得する。
+* **作業ブランチの作成 (MUST)**:
+  * 取得したIssue番号に基づき、専用スクリプトで最新のベースブランチ（`main` 等）から作業ブランチを作成・チェックアウトする（ブランチ名にも接頭辞は付与しない）。
   ```bash
   python .agents/skills/workflow/scripts/start_feature_branch.py -b feature/issue-XXX-description
   ```
-* **WIP（セーブポイント）コミットとシークレットガード**:
+* **作業前検証**:
+  * `git branch --show-current` で作業ブランチに切り替わっていることを確認してから実装・編集に着手する。
+
+---
+
+## 3. 実装とWIPコミット（セーブポイント）
+
+* **WIPコミットとシークレットガード**:
   * 作業ブランチ上での自律的なWIPコミットは許可される。APIキーや秘密鍵の流出を100%機械的に阻止するため、必ず専用スクリプトを使用すること。
+  * 差分全体ではなく特定のファイルのみを対象とする場合は `-p / --paths` で指定可能。
   ```bash
   python .agents/skills/workflow/scripts/commit_wip.py -m "作業内容の説明" -i XXX
+  # パス指定コミット:
+  # python .agents/skills/workflow/scripts/commit_wip.py -m "作業内容の説明" -i XXX -p path/to/file1 path/to/file2
   ```
 * **ブランチ保護**:
   * `main` への直接Pushおよびコミット履歴を改変する `git push --force` (`-f`) は絶対禁止 (**MUST NOT**)。
 
 ---
 
-## 2. 実装・不可侵検証と自己修復 (Self-Correction)
+## 4. テスト・不可侵検証と自己修復 (Self-Correction)
 
 * **自律的な品質検証**:
-  * コード修正後、Walkthrough作成や報告を行う前に、プロジェクト固有の標準テストおよびLinter（`npm test`, `pytest`, `cargo test` 等）を自律判定して実行する。
+  * コード修正後、Walkthrough作成やPR起票を行う前に、プロジェクト固有の標準テストおよびLinter（`npm test`, `pytest`, `cargo test` 等）を自律判定して実行する。
 * **自己修復プロトコル**:
   * テストやLintが失敗した場合は、最大3回まで自律修復を試みる。
   * 巨大ログによるトークン消費を防ぐログ抑制テクニックや詳細な手順は [**references/self-correction.md**](references/self-correction.md) を参照すること。
 
 ---
 
-## 3. サブエージェントの協調 (Manager / Worker)
+## 5. 差分要約とWalkthrough（Artifact: walkthrough.md）
 
-* **タスクの委任**:
-  * 大規模・複雑なタスクでは、調査や部分実装をサブエージェントに委任して並列処理を行う。
-* **安価モデル（Flash）の指定義務**:
-  * リサーチや単純ファイル検索、ログ解析等のサブエージェントを起動する際は、コスト最適化のため `flash` または `flash_lite` を指定すること。
-
----
-
-## 4. Definition of Done & PR作成・クリーンアップ
-
-* **DoDチェックリスト & 差分要約**:
-  * PR作成前に、ドキュメント整合性・テスト通過・派生課題の起票準備を確認する。
+* **差分サマリー抽出**:
   * `generate_walkthrough.py` でトークン消費を抑えた差分サマリーを取得する。
   ```bash
   python .agents/skills/workflow/scripts/generate_walkthrough.py
   ```
-* **PR起票・レビュー対応・マージ後クリーンアップ**:
-  * PRテンプレート（`resources/PULL_REQUEST_TEMPLATE.md`）の適用、MCPツールを用いたPR作成、およびマージ後の `cleanup_branch.py` によるブランチ消去・同期の詳細手順は [**references/pr-lifecycle.md**](references/pr-lifecycle.md) を参照すること。
+* **Walkthrough の Artifact 出力**:
+  * 差分要約およびテスト実行エビデンス（PASSログ）を統合し、`<appDataDir>\brain\<conversation-id>\walkthrough.md` を作成する（`UserFacing: true`, `RequestFeedback: false`）。
+  * チャット上ではエビデンス概要とリンクのみを提示する。
+
+---
+
+## 6. PR起票・レビュー対応・マージ後クリーンアップ
+
+* **PRテンプレートとIssue連携**:
+  * PR作成時は [.agents/skills/workflow/resources/PULL_REQUEST_TEMPLATE.md](resources/PULL_REQUEST_TEMPLATE.md) を適用し、本文末尾に `Closes #XXX` を含めてIssueと自動連動させる。
+  * **タイトル規約**: PRタイトルに接頭辞（Prefix）は付けず、クリーンなConventional Commitsとする (**MUST**)。
+  * **AI識別ラベル**: 必ず `--label "ai-generated"` を付与してPRを作成する (**MUST**)。
+  * **共通フッター**: 本文末尾にテンプレート規定の共通フッター（`<sub>Generated with AI Agent ({{HARNESS_NAME}})</sub>`、実行環境のハーネス名を反映）を含める (**MUST**)。
+* **詳細手順の参照**:
+  * MCPツールを用いたPR作成、対話的レビュー対応、およびマージ後の `cleanup_branch.py` によるブランチ消去・同期の詳細手順は [**references/pr-lifecycle.md**](references/pr-lifecycle.md) を参照すること。

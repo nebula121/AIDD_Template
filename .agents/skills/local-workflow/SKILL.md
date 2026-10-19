@@ -1,6 +1,6 @@
 ---
 name: Local Task Workflow
-description: GitHub連携（リモートPush/PR/Issue）を排除し、完全ローカル環境でタスク管理・ブランチ作成・テスト自己修復・人間承認マージ・完了記録を一貫して行う標準ガイドライン。オフラインやローカル完結開発時に使用すること。
+description: GitHub連携（リモートPush/PR/Issue）を排除し、完全ローカル環境でタスク管理・ブランチ作成・テスト自己修復・Artifacts生成・人間承認マージ・完了記録を一貫して行う標準ガイドライン。オフラインやローカル完結開発時に使用すること。
 ---
 
 # ローカル開発ワークフロー規定 (Local Task Workflow)
@@ -9,31 +9,50 @@ description: GitHub連携（リモートPush/PR/Issue）を排除し、完全ロ
 
 > [!IMPORTANT]
 > - **成果物言語**: AIが作成する成果物ドキュメント（Implementation Plan、Walkthrough、タスク文書等）は、原則として**日本語**で記述すること。
-> - **調査と実装の分離**: ユーザー指示が「確認・調査」である場合はコードやドキュメントを変更せず結果報告に留めること。変更作業は、事前に明示的な修正指示と実装計画の承認を得てから作業ブランチ上で行うこと。
+> - **調査と実装の分離**: ユーザー指示が「確認・調査」である場合はコードやドキュメントを変更せず結果報告に留めること。
+> - **不可侵ガードレール（ブランチ保護）**: コードや仕様書を1文字でも編集する前に、必ず作業ブランチに切り替えること (**MUST**)。baseブランチ（`main` 等）上での直接編集・直接コミットは絶対禁止 (**MUST NOT**)。
+> - **Artifacts原則**: 実装計画書（`implementation_plan.md`）および完了報告（`walkthrough.md`）は必ず Antigravity Artifacts ディレクトリ（`<appDataDir>\brain\<conversation-id>\`）に出力し、チャット本文への長大な全文再要約・二重出力を禁じる (**MUST NOT**)。
 > - **Ponytail原則**: 仕様書にない不要な抽象化や過剰なボイラープレートを排除し、最短・最善の最小差分で実装すること。
-> - **承認なきマージの禁止**: テストが全件通過しても、**チャット上で人間にWalkthroughを提示して明示的なマージ承認を得る前に、勝手にbaseブランチへマージしてはならない (**MUST NOT**)。**
+> - **承認なきマージの禁止**: テストが全件通過しても、人間にWalkthroughを提示して明示的なマージ承認（Proceedボタンまたはチャット承認）を得る前に、勝手にbaseブランチへマージしてはならない (**MUST NOT**)。
 
 ---
 
 ## ワークフロー全体図 (Local Lifecycle Overview)
 
 ```mermaid
-flowchart LR
-    Start["1. タスク開始<br/>(start_task_branch)"] --> Impl["2. 実装 & WIPコミット<br/>(commit_wip)"]
-    Impl --> Test["3. テスト & 自己修復<br/>(self-correction)"]
-    Test --> Review["4. 差分要約 & Walkthrough提示<br/>(generate_walkthrough)"]
-    Review --> Approve{人間承認?}
-    Approve -- Yes --> Merge["5. ローカルマージ<br/>(merge_branch)"]
-    Merge --> Complete["6. タスク完了記録<br/>(complete_task)"]
-    Approve -- 修正指示 --> Impl
+flowchart TD
+    Step1["1. 調査 & 実装計画作成<br/>(Artifact: implementation_plan.md)"] --> ApprovePlan{"ユーザー計画承認<br/>(Proceedボタン)"}
+    ApprovePlan -- 承認 --> Step2["2. タスク開始 & ブランチ作成<br/>(start_task_branch)"]
+    Step2 --> Step3["3. 実装 & WIPコミット<br/>(commit_wip)"]
+    Step3 --> Step4["4. テスト & 自己修復<br/>(self-correction)"]
+    Step4 --> Step5["5. 差分要約 & Walkthrough生成<br/>(Artifact: walkthrough.md)"]
+    Step5 --> ApproveMerge{"人間マージ承認?<br/>(Proceedボタン)"}
+    ApproveMerge -- 承認 --> Step6["6. ローカルマージ & 完了記録<br/>(merge_branch / complete_task)"]
+    ApprovePlan -- 修正指示 --> Step1
+    ApproveMerge -- 修正指示 --> Step3
 ```
 
 ---
 
-## 1. タスク開始と作業ブランチ作成
+## 1. 調査と実装計画書（Artifact: implementation_plan.md）
 
-* **タスク文書の初期化とブランチ作成**:
-  * 専用スクリプトを実行し、`docs/tasks/<task>.md` の生成（初回は `docs/tasks/` も自動作成）と作業ブランチの作成・チェックアウトを一括実行する。
+* **調査と要求分析**:
+  * 関連仕様書（`docs/spec-router.md`）やコードを調査し、変更対象と受入条件を特定する。
+* **実装計画書の Artifact 出力**:
+  * `write_to_file` を用い、`<appDataDir>\brain\<conversation-id>\implementation_plan.md` に計画書を作成する。
+  * `ArtifactMetadata` には `UserFacing: true`, `RequestFeedback: true` を指定し、UI上に「Proceed」ボタンを表示させる。
+* **チャット案内ルール**:
+  * チャット本文で計画全文を再要約せず、Artifact へのファイルリンクと判断・確認が必要な論点のみを簡潔に提示してユーザーの承認を仰ぐ。
+
+---
+
+## 2. タスク開始と作業ブランチ作成
+
+* **タスク文書の初期化とブランチ作成 (MUST)**:
+  * 計画承認後直ちに専用スクリプトを実行し、`docs/tasks/<task>.md` の生成（初回は `docs/tasks/` も自動作成）と作業ブランチの作成・チェックアウトを一括実行する。
+  * **タイトル規約**: タイトルに `[AI]` や絵文字等の接頭辞（Prefix）は付けず、クリーンな日本語タイトルとする (**MUST**)。
+  * **AI識別ラベル**: 生成されるタスク文書の Frontmatter に `labels: ["ai-generated"]` が含まれる (**MUST**)。
+  * **共通フッター**: 本文末尾に共通フッター（`<sub>Generated with AI Agent ({{HARNESS_NAME}})</sub>`、ハーネス名を反映）を含める (**MUST**)。
   ```bash
   python .agents/skills/local-workflow/scripts/start_task_branch.py -t 001-task-name --title "タスクの日本語タイトル"
   ```
@@ -42,17 +61,22 @@ flowchart LR
 
 ---
 
-## 2. 実装とWIPコミット（セーブポイント）
+## 3. 実装とWIPコミット（セーブポイント）
 
-* **安全なWIPコミット**:
-  * 作業ブランチ上での自律的なWIPコミットは許可される。機密情報漏洩を100%機械的に阻止するため、必ず専用スクリプトを使用すること。
+* **WIPコミットとシークレットガード**:
+  * 作業ブランチ上での自律的なWIPコミットは許可される。APIキーや秘密鍵の流出を100%機械的に阻止するため、必ず専用スクリプトを使用すること。
+  * 差分全体ではなく特定のファイルのみを対象とする場合は `-p / --paths` で指定可能。
   ```bash
   python .agents/skills/local-workflow/scripts/commit_wip.py -m "作業内容の説明" -t 001-task-name
+  # パス指定コミット:
+  # python .agents/skills/local-workflow/scripts/commit_wip.py -m "作業内容の説明" -t 001-task-name -p path/to/file1 path/to/file2
   ```
+* **ブランチ保護**:
+  * baseブランチ（`main` 等）への直接編集・直接コミットは絶対禁止 (**MUST NOT**)。必ず作業ブランチ上で行うこと。
 
 ---
 
-## 3. 自律テスト・品質検証と自己修復 (Self-Correction)
+## 4. 自律テスト・品質検証と自己修復 (Self-Correction)
 
 * **自律的な品質検証**:
   * コード修正後、プロジェクト固有の標準テストおよびLinter（`npm test`, `pytest`, `cargo test` 等）を自律判定して実行する。
@@ -61,21 +85,21 @@ flowchart LR
 
 ---
 
-## 4. 成果物確認と人間へのマージ承認要請
+## 5. 差分要約とWalkthrough（Artifact: walkthrough.md）
 
 * **差分サマリー抽出**:
   ```bash
   python .agents/skills/local-workflow/scripts/generate_walkthrough.py
   ```
-* **チャット上でのWalkthrough提示と承認確認**:
-  * 差分要約を元に、概要・変更点・検証結果をチャットに報告する。
-  * **「実装と検証が完了しました。baseブランチ（main）へのマージを進めてよろしいですか？」** と人間に確認する。
+* **Walkthrough の Artifact 出力**:
+  * 差分要約およびテスト実行エビデンス（PASSログ）を統合し、`<appDataDir>\brain\<conversation-id>\walkthrough.md` を作成する（`UserFacing: true`, `RequestFeedback: true` でマージ承認を要請）。
+  * チャット上ではエビデンス概要とリンクのみを提示し、マージ確認を求める。
 
 ---
 
-## 5. 承認後マージとタスク完了処理
+## 6. 承認後マージとタスク完了処理
 
-人間からチャット上で承認（「マージして」「OK」等）を受けた後、以下のステップを順次実行する。
+人間から承認（Proceedボタンまたはチャットでの承認）を受けた後、以下のステップを順次実行する。
 
 1. **ローカルマージとブランチ削除**:
    ```bash
