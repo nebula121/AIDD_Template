@@ -94,33 +94,39 @@ def main():
         if os.path.exists(template_path):
             with open(template_path, "r", encoding="utf-8") as f:
                 template_content = f.read()
-            task_content = template_content.replace("{{TASK_ID}}", task_name)
-            task_content = task_content.replace("{{TASK_TITLE}}", task_title)
-            task_content = task_content.replace("{{CREATED_DATE}}", today_str)
-            task_content = task_content.replace("{{BRANCH_NAME}}", branch_name)
-            task_content = task_content.replace("{{HARNESS_NAME}}", harness_name)
         else:
-            task_content = (
-                f"---\n"
-                f"task_id: \"{task_name}\"\n"
-                f"title: \"{task_title}\"\n"
-                f"status: \"in-progress\"\n"
-                f"created_at: \"{today_str}\"\n"
-                f"branch: \"{branch_name}\"\n"
-                f"labels:\n"
-                f"  - \"ai-generated\"\n"
-                f"---\n"
-                f"# タスク仕様書: {task_title}\n\n"
-                f"- **ステータス**: 🟡 進行中\n"
-                f"- **作成日**: {today_str}\n"
-                f"- **作業ブランチ**: {branch_name}\n\n"
-                f"## 1. Goal (目的・完了条件)\n\n"
-                f"## 2. Context (背景・仕様参照)\n\n"
-                f"## 3. Technical Details (技術要件・制約)\n\n"
-                f"## 4. Verification (検証手順)\n\n"
-                f"---\n"
-                f"<sub>Generated with AI Agent ({harness_name})</sub>\n"
+            template_content = (
+                "---\n"
+                "task_id: \"{{TASK_ID}}\"\n"
+                "title: \"{{TASK_TITLE}}\"\n"
+                "status: \"in-progress\"\n"
+                "created_at: \"{{CREATED_DATE}}\"\n"
+                "branch: \"{{BRANCH_NAME}}\"\n"
+                "labels:\n"
+                "  - \"ai-generated\"\n"
+                "---\n"
+                "# タスク仕様書: {{TASK_TITLE}}\n\n"
+                "- **ステータス**: 🟡 進行中\n"
+                "- **作成日**: {{CREATED_DATE}}\n"
+                "- **作業ブランチ**: {{BRANCH_NAME}}\n\n"
+                "## 1. Goal (目的・完了条件)\n\n"
+                "## 2. Context (背景・仕様参照)\n\n"
+                "## 3. Technical Details (技術要件・制約)\n\n"
+                "## 4. Verification (検証手順)\n\n"
+                "---\n"
+                "<sub>Generated with AI Agent ({{HARNESS_NAME}})</sub>\n"
             )
+
+        replacements = {
+            "{{TASK_ID}}": task_name,
+            "{{TASK_TITLE}}": task_title,
+            "{{CREATED_DATE}}": today_str,
+            "{{BRANCH_NAME}}": branch_name,
+            "{{HARNESS_NAME}}": harness_name,
+        }
+        task_content = template_content
+        for key, val in replacements.items():
+            task_content = task_content.replace(key, val)
 
         with open(task_file_path, "w", encoding="utf-8") as f:
             f.write(task_content)

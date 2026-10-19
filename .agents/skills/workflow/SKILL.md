@@ -65,8 +65,11 @@ flowchart TD
 
 * **WIPコミットとシークレットガード**:
   * 作業ブランチ上での自律的なWIPコミットは許可される。APIキーや秘密鍵の流出を100%機械的に阻止するため、必ず専用スクリプトを使用すること。
+  * 差分全体ではなく特定のファイルのみを対象とする場合は `-p / --paths` で指定可能。
   ```bash
   python .agents/skills/workflow/scripts/commit_wip.py -m "作業内容の説明" -i XXX
+  # パス指定コミット:
+  # python .agents/skills/workflow/scripts/commit_wip.py -m "作業内容の説明" -i XXX -p path/to/file1 path/to/file2
   ```
 * **ブランチ保護**:
   * `main` への直接Pushおよびコミット履歴を改変する `git push --force` (`-f`) は絶対禁止 (**MUST NOT**)。
