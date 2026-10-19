@@ -49,7 +49,7 @@ flowchart TD
   * 既存Issue番号（例: `#42`）が指定されていない場合、計画承認後直ちに [.agents/skills/workflow/resources/ISSUE_TEMPLATE.md](resources/ISSUE_TEMPLATE.md) のフォーマットに従って GitHub Issue を起票する。
   * **タイトル規約**: タイトルに `[AI]` や絵文字等の接頭辞（Prefix）は付けず、クリーンなConventional Commitsまたは日本語タイトルとする (**MUST**)。
   * **AI識別ラベル**: 必ず `--label "ai-generated"` を付与して起票する (**MUST**)。
-  * **共通フッター**: 本文末尾にテンプレート規定の共通フッター（`<sub>※ 本ドキュメントは AI Agent (Antigravity) により自律生成されました。</sub>`）を含める (**MUST**)。
+  * **共通フッター**: 本文末尾にテンプレート規定の共通フッター（`<sub>Generated with AI Agent ({{HARNESS_NAME}})</sub>`、実行環境のハーネス名を反映）を含める (**MUST**)。
   * MCPツール `create_issue` または `gh issue create --title "..." --body-file "..." --label "ai-generated"` を使用し、採番されたIssue番号を取得する。
 * **作業ブランチの作成 (MUST)**:
   * 取得したIssue番号に基づき、専用スクリプトで最新のベースブランチ（`main` 等）から作業ブランチを作成・チェックアウトする（ブランチ名にも接頭辞は付与しない）。
@@ -102,6 +102,6 @@ flowchart TD
   * PR作成時は [.agents/skills/workflow/resources/PULL_REQUEST_TEMPLATE.md](resources/PULL_REQUEST_TEMPLATE.md) を適用し、本文末尾に `Closes #XXX` を含めてIssueと自動連動させる。
   * **タイトル規約**: PRタイトルに接頭辞（Prefix）は付けず、クリーンなConventional Commitsとする (**MUST**)。
   * **AI識別ラベル**: 必ず `--label "ai-generated"` を付与してPRを作成する (**MUST**)。
-  * **共通フッター**: 本文末尾にテンプレート規定の共通フッター（`<sub>※ 本ドキュメントは AI Agent (Antigravity) により自律生成されました。</sub>`）を含める (**MUST**)。
+  * **共通フッター**: 本文末尾にテンプレート規定の共通フッター（`<sub>Generated with AI Agent ({{HARNESS_NAME}})</sub>`、実行環境のハーネス名を反映）を含める (**MUST**)。
 * **詳細手順の参照**:
   * MCPツールを用いたPR作成、対話的レビュー対応、およびマージ後の `cleanup_branch.py` によるブランチ消去・同期の詳細手順は [**references/pr-lifecycle.md**](references/pr-lifecycle.md) を参照すること。

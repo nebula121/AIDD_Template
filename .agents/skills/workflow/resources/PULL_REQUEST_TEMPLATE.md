@@ -14,4 +14,4 @@
 ※レビュー依頼や懸念事項などの「対話的な内容」は、この本文には含めず、PRに対する「コメント」として別途投稿してください。 -->
 
 ---
-<sub>※ 本ドキュメントは AI Agent (Antigravity) により自律生成されました。</sub>
+<sub>Generated with AI Agent ({{HARNESS_NAME}})</sub>

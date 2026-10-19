@@ -44,4 +44,4 @@ labels:
 - 期待結果: 
 
 ---
-<sub>※ 本ドキュメントは AI Agent (Antigravity) により自律生成されました。</sub>
+<sub>Generated with AI Agent ({{HARNESS_NAME}})</sub>

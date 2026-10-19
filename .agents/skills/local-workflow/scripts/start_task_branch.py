@@ -16,6 +16,7 @@ def main():
     parser.add_argument("-b", "--branch-name", default="", help="Feature/task branch name (default: task/<task-name>)")
     parser.add_argument("--base-branch", default="main", help="Base branch name to branch off from (default: main)")
     parser.add_argument("--auto-stash", action="store_true", help="Auto stash uncommitted tracked changes before switching branch")
+    parser.add_argument("--harness", default=os.environ.get("AGENT_HARNESS", "Antigravity"), help="AI Agent harness/runtime name (default: Antigravity)")
 
     args = parser.parse_args()
 
@@ -89,6 +90,7 @@ def main():
     today_str = datetime.date.today().strftime("%Y-%m-%d")
 
     if not os.path.exists(task_file_path):
+        harness_name = args.harness.strip() if args.harness and args.harness.strip() else "Antigravity"
         if os.path.exists(template_path):
             with open(template_path, "r", encoding="utf-8") as f:
                 template_content = f.read()
@@ -96,6 +98,7 @@ def main():
             task_content = task_content.replace("{{TASK_TITLE}}", task_title)
             task_content = task_content.replace("{{CREATED_DATE}}", today_str)
             task_content = task_content.replace("{{BRANCH_NAME}}", branch_name)
+            task_content = task_content.replace("{{HARNESS_NAME}}", harness_name)
         else:
             task_content = (
                 f"---\n"
@@ -116,7 +119,7 @@ def main():
                 f"## 3. Technical Details (技術要件・制約)\n\n"
                 f"## 4. Verification (検証手順)\n\n"
                 f"---\n"
-                f"<sub>※ 本ドキュメントは AI Agent (Antigravity) により自律生成されました。</sub>\n"
+                f"<sub>Generated with AI Agent ({harness_name})</sub>\n"
             )
 
         with open(task_file_path, "w", encoding="utf-8") as f:

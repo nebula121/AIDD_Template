@@ -16,7 +16,7 @@
    ```
 3. **タスク文書（`docs/tasks/<task>.md`）の編集**:
    - 生成されたタスク文書内の Goal（受入条件）、Context（仕様リンク）、Technical Details（制約）、Verification（検証手順）を明確化してから実装を開始する。
-   - 文書最下部の共通フッター（`<sub>※ 本ドキュメントは AI Agent (Antigravity) により自律生成されました。</sub>`）を維持すること。
+   - 文書最下部の共通フッター（`<sub>Generated with AI Agent ({{HARNESS_NAME}})</sub>`、ハーネス名を反映）を維持すること。
 
 ---
 

@@ -49,7 +49,7 @@ Pull Requestを作成する前に、以下の4つの条件をすべて満たし�
    - `.agents/skills/workflow/resources/PULL_REQUEST_TEMPLATE.md` の構造に従って本文を作成する。
    - タイトルに `[AI]` 等の接頭辞は付けず、クリーンなConventional Commitsとする (**MUST**)。
    - 本文末尾に `Closes #XXX`（対象GitHub Issue番号）を必ず記載し、マージ時の自動クローズを連携させる (**MUST**)。
-   - 本文最下部にテンプレート規定の共通フッター（`<sub>※ 本ドキュメントは AI Agent...</sub>`）を含める (**MUST**)。
+   - 本文最下部にテンプレート規定の共通フッター（`<sub>Generated with AI Agent ({{HARNESS_NAME}})</sub>`、ハーネス名を反映）を含める (**MUST**)。
      - **Summary**: 実装内容の簡潔な要約。
      - **Changes**: 変更箇所の詳細と設計判断の理由。
      - **Verification**: 実行したテスト・Lint結果の事実ベース報告。
