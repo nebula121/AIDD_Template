@@ -78,7 +78,22 @@ def main():
         if res_pull.returncode != 0:
             print(f"Notice: Failed to pull origin {base_branch}. Continuing with local {base_branch}...", file=sys.stderr)
 
-    # 4. Initialize docs/tasks directory and README.md if not existing
+    # 4. Create and checkout target task branch before creating/editing any task files (Branch Protection)
+    print(f"Creating/switching to task branch '{branch_name}'...")
+    res = run_command(["git", "checkout", "-b", branch_name], check=False)
+    if res.returncode != 0:
+        res = run_command(["git", "checkout", branch_name], check=False)
+        if res.returncode != 0:
+            print(f"Error: Failed to checkout branch {branch_name}:\n{res.stderr}", file=sys.stderr)
+            sys.exit(res.returncode)
+
+    res = run_command(["git", "branch", "--show-current"])
+    current = res.stdout.strip()
+    if current != branch_name:
+        print(f"Error: Branch checkout verification failed! Active branch is '{current}', expected '{branch_name}'.", file=sys.stderr)
+        sys.exit(1)
+
+    # 5. Initialize docs/tasks directory and README.md if not existing on task branch
     tasks_dir = os.path.join(str(root_dir), "docs", "tasks")
     completed_dir = os.path.join(tasks_dir, "completed")
     os.makedirs(completed_dir, exist_ok=True)
@@ -95,7 +110,7 @@ def main():
             f.write(initial_readme)
         print("Initialized docs/tasks/README.md")
 
-    # 5. Create or verify task markdown file
+    # 6. Create or verify task markdown file on task branch
     task_file_path = os.path.join(tasks_dir, task_file_name)
     template_path = os.path.join(script_dir, "..", "resources", "TASK_TEMPLATE.md")
 
@@ -144,21 +159,6 @@ def main():
             print("Updated docs/tasks/README.md with new active task.")
     else:
         print(f"Task file already exists: docs/tasks/{task_file_name}")
-
-    # 6. Create and checkout target task branch
-    print(f"Creating/switching to task branch '{branch_name}'...")
-    res = run_command(["git", "checkout", "-b", branch_name], check=False)
-    if res.returncode != 0:
-        res = run_command(["git", "checkout", branch_name], check=False)
-        if res.returncode != 0:
-            print(f"Error: Failed to checkout branch {branch_name}:\n{res.stderr}", file=sys.stderr)
-            sys.exit(res.returncode)
-
-    res = run_command(["git", "branch", "--show-current"])
-    current = res.stdout.strip()
-    if current != branch_name:
-        print(f"Error: Branch checkout verification failed! Active branch is '{current}', expected '{branch_name}'.", file=sys.stderr)
-        sys.exit(1)
 
     print(f"Successfully started task '{task_name}' on branch '{branch_name}'.")
 
