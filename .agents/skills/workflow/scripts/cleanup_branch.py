@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 import sys
 import os
-import glob
 import json
-import shutil
 import argparse
 import subprocess
 
@@ -14,7 +12,7 @@ def main():
     parser = argparse.ArgumentParser(description="Post-merge branch cleanup workflow.")
     parser.add_argument("-b", "--target-branch", required=True, help="Feature branch to delete")
     parser.add_argument("--base-branch", default="main", help="Base branch name (default: main)")
-    parser.add_argument("-i", "--issue-number", type=int, default=0, help="Issue number for safety check")
+    parser.add_argument("-i", "--issue-number", type=int, default=0, help="Issue number for reference")
     parser.add_argument("-p", "--pull-request-number", type=int, default=0, help="Pull Request number for safety check")
     parser.add_argument("--delete-remote", action="store_true", help="Delete remote branch via GitHub API")
     parser.add_argument("--auto-stash", action="store_true", help="Auto stash uncommitted tracked changes before cleanup")
@@ -70,22 +68,36 @@ def main():
         print(f"Error: Cannot delete '{base_branch}' branch.", file=sys.stderr)
         sys.exit(1)
 
-    pr_id = args.pull_request_number if args.pull_request_number > 0 else (args.issue_number if args.issue_number > 0 else None)
-    if pr_id:
-        print(f"Verifying TargetBranch '{target_branch}' against PR/Issue #{pr_id}...")
-        res_pr = run_command(["gh", "pr", "view", str(pr_id), "--json", "headRefName,state,merged"])
-        if res_pr.returncode == 0 and res_pr.stdout:
-            try:
-                pr_data = json.loads(res_pr.stdout)
-                head_ref = pr_data.get("headRefName")
-                if head_ref and head_ref != target_branch:
-                    print(f"Error: Safety Check Failed: Specified TargetBranch '{target_branch}' does not match PR #{pr_id} head branch '{head_ref}'.", file=sys.stderr)
-                    sys.exit(1)
-                print(f"Verified TargetBranch '{target_branch}' matches PR #{pr_id} head branch.")
-            except Exception:
-                print(f"Warning: Could not parse PR details JSON for #{pr_id}.")
-        else:
-            print(f"Warning: Could not fetch PR details for #{pr_id} via GitHub CLI.")
+    # Verify PR merge status
+    pr_query = str(args.pull_request_number) if args.pull_request_number > 0 else target_branch
+    print(f"Verifying PR merge status for TargetBranch '{target_branch}' (query: {pr_query})...")
+    res_pr = run_command(["gh", "pr", "view", pr_query, "--json", "number,headRefName,state,merged"])
+    if res_pr.returncode != 0 and args.issue_number > 0 and args.pull_request_number == 0:
+        # Fallback to issue-number if query by branch name failed
+        res_pr = run_command(["gh", "pr", "view", str(args.issue_number), "--json", "number,headRefName,state,merged"])
+
+    is_merged = False
+    if res_pr.returncode == 0 and res_pr.stdout:
+        try:
+            pr_data = json.loads(res_pr.stdout)
+            head_ref = pr_data.get("headRefName")
+            pr_num = pr_data.get("number", pr_query)
+            if head_ref and head_ref != target_branch:
+                print(f"Error: Safety Check Failed: Specified TargetBranch '{target_branch}' does not match PR #{pr_num} head branch '{head_ref}'.", file=sys.stderr)
+                sys.exit(1)
+
+            merged = pr_data.get("merged")
+            state = pr_data.get("state")
+            if merged is True or state == "MERGED":
+                is_merged = True
+                print(f"Verified PR #{pr_num} for '{target_branch}' is merged (merged={merged}, state={state}).")
+            else:
+                print(f"Error: TargetBranch '{target_branch}' (PR #{pr_num}) is not merged (merged={merged}, state={state}). Cleanup aborted to prevent data loss.", file=sys.stderr)
+                sys.exit(1)
+        except json.JSONDecodeError:
+            print(f"Warning: Could not parse PR details JSON for query '{pr_query}'.")
+    else:
+        print(f"Warning: Could not fetch PR details for '{target_branch}' via GitHub CLI.")
 
     # 3. Switch to base branch
     print(f"Switching to {base_branch} branch...")
@@ -115,14 +127,22 @@ def main():
     print(f"Deleting local feature branch '{target_branch}'...")
     res_del = run_command(["git", "branch", "-d", target_branch])
     if res_del.returncode != 0:
-        print("Safe delete (-d) failed (e.g. squash merged). Attempting force delete (-D)...")
-        res_fdel = run_command(["git", "branch", "-D", target_branch])
-        if res_fdel.returncode != 0:
-            print(f"Error: Failed to force delete branch '{target_branch}':\n{res_fdel.stderr}", file=sys.stderr)
-            sys.exit(res_fdel.returncode)
+        if is_merged:
+            print("Safe delete (-d) failed (e.g. squash/rebase merged). PR is confirmed merged, attempting force delete (-D)...")
+            res_fdel = run_command(["git", "branch", "-D", target_branch])
+            if res_fdel.returncode != 0:
+                print(f"Error: Failed to force delete branch '{target_branch}':\n{res_fdel.stderr}", file=sys.stderr)
+                sys.exit(res_fdel.returncode)
+        else:
+            print(f"Error: Cannot delete branch '{target_branch}': safe delete (-d) failed and PR merge status was not confirmed. Force delete (-D) is blocked to prevent data loss.", file=sys.stderr)
+            sys.exit(1)
 
     # 6. Delete remote branch via GitHub API if requested
     if args.delete_remote and has_remote:
+        if not is_merged:
+            print(f"Error: Cannot delete remote branch '{target_branch}' because PR merge status was not confirmed.", file=sys.stderr)
+            sys.exit(1)
+
         print("Deleting remote branch via GitHub API...")
         res_repo = run_command(["gh", "repo", "view", "--json", "fullName", "-q", ".fullName"])
         if res_repo.returncode == 0 and res_repo.stdout.strip():

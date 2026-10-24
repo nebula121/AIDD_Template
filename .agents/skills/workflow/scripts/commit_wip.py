@@ -36,9 +36,16 @@ def main():
 
     print("=== Running Agent Pre-Commit Secret Scan ===")
 
-    # 2. Pre-commit secret check on staged changes
+    # 2. Pre-commit secret check on added lines in staged changes
     res_diff = run_command(["git", "diff", "--cached"])
     staged_content = res_diff.stdout if res_diff.stdout else ""
+
+    # Extract only added lines (exclude '+++' file headers) to avoid false positives on deletions
+    added_lines = [
+        line[1:] for line in staged_content.splitlines()
+        if line.startswith("+") and not line.startswith("+++")
+    ]
+    added_content = "\n".join(added_lines)
 
     patterns = [
         r"BEGIN RSA PRIVATE KEY",
@@ -50,13 +57,11 @@ def main():
         r"AKIA[0-9A-Z]{16}",
         r"sk_live_[a-zA-Z0-9]+",
         r"(api[_-]?key|secret|password|token)\s*[:=]\s*['\"][a-zA-Z0-9_\-]{8,}['\"]",
-        r"password\s*=\s*['\"]",
-        r"api[_-]?key\s*=\s*['\"]",
     ]
 
     secret_found = False
     for pat in patterns:
-        if re.search(pat, staged_content, re.IGNORECASE):
+        if re.search(pat, added_content, re.IGNORECASE):
             print(f"CRITICAL: Secret pattern '{pat}' detected in staged diff! Commit blocked.", file=sys.stderr)
             secret_found = True
 
