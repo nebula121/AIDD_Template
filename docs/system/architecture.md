@@ -1,7 +1,7 @@
 ---
 spec_id: system-architecture
 title: システムアーキテクチャ ＆ コンポーネント構成
-layer: 1
+layer: 2
 category: architecture
 status: draft
 target_files:
