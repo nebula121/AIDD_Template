@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic static verifier for AIDD/SDD specifications."""
+"""Deterministic static verifier and synchronizer for AIDD/SDD specifications."""
 
 import argparse
 import glob
@@ -30,14 +30,37 @@ PLACEHOLDER_PATTERNS = [
     (r"<!--\s*GUIDE:", "Unremoved template guide comment '<!-- GUIDE: ... -->'"),
 ]
 
+VALID_LAYERS = {0, 1, 2, 3, "-"}
+LAYER_ORDER = {0: 0, "-": 1, 1: 2, 2: 3, 3: 4}
+
+DAG_START_MARKER = "<!-- @generated:spec-dag-start -->"
+DAG_END_MARKER = "<!-- @generated:spec-dag-end -->"
+TABLE_START_MARKER = "<!-- @generated:spec-table-start -->"
+TABLE_END_MARKER = "<!-- @generated:spec-table-end -->"
+
+
+def find_repo_root() -> Path:
+    """Find repository root by looking for .git or AGENTS.md in parents."""
+    current = Path(__file__).resolve()
+    for parent in current.parents:
+        if (parent / ".git").exists() or (parent / "AGENTS.md").exists():
+            return parent
+    return Path.cwd()
+
+
+def normalize_text(text: str) -> str:
+    """Normalize CRLF to LF for cross-platform deterministic comparison."""
+    return text.replace("\r\n", "\n")
+
 
 def parse_simple_yaml_frontmatter(text: str, rel_path: str, errors: list[str]) -> tuple[dict, str]:
     """Parse YAML frontmatter without external dependencies."""
-    if not text.startswith("---\n") and not text.startswith("---\r\n"):
+    norm_text = normalize_text(text)
+    if not norm_text.startswith("---\n"):
         errors.append(f"{rel_path}: Missing YAML frontmatter opening '---' at line 1.")
-        return {}, text
+        return {}, norm_text
 
-    lines = text.splitlines()
+    lines = norm_text.splitlines()
     end_idx = None
     for i in range(1, len(lines)):
         if lines[i].strip() == "---":
@@ -46,7 +69,7 @@ def parse_simple_yaml_frontmatter(text: str, rel_path: str, errors: list[str]) -
 
     if end_idx is None:
         errors.append(f"{rel_path}: Missing YAML frontmatter closing '---'.")
-        return {}, text
+        return {}, norm_text
 
     fm_lines = lines[1:end_idx]
     body = "\n".join(lines[end_idx + 1 :])
@@ -139,7 +162,7 @@ def collect_spec_files(root: Path) -> list[str]:
 
 
 def check_dag_cycles(specs_by_id: dict[str, dict], errors: list[str]) -> None:
-    """Verify dependency references exist, respect layer order, and form a valid DAG."""
+    """Verify dependency references exist, respect layer order, forbid reverse-dependency to router index, and form a valid DAG."""
     for spec_id, meta in specs_by_id.items():
         src_layer = meta.get("layer", 0)
         for dep_id in meta.get("dependencies", []):
@@ -148,7 +171,18 @@ def check_dag_cycles(specs_by_id: dict[str, dict], errors: list[str]) -> None:
                     f"{meta['path']}: Unknown dependency spec_id '{dep_id}' in frontmatter."
                 )
                 continue
-            dep_layer = specs_by_id[dep_id].get("layer", 0)
+
+            dep_meta = specs_by_id[dep_id]
+            dep_layer = dep_meta.get("layer", 0)
+
+            # Specification files MUST NOT depend on the router index (Layer '-')
+            if dep_id == "spec-router" or dep_layer == "-":
+                errors.append(
+                    f"{meta['path']}: Spec files cannot depend on router index '{dep_id}' (Layer '-')."
+                )
+                continue
+
+            # Layer order check: higher layer cannot depend on lower layer (e.g. Layer 2 cannot depend on Layer 3)
             if isinstance(src_layer, int) and isinstance(dep_layer, int):
                 if dep_layer > src_layer:
                     errors.append(
@@ -180,103 +214,163 @@ def check_dag_cycles(specs_by_id: dict[str, dict], errors: list[str]) -> None:
             dfs(node)
 
 
-def parse_markdown_table_rows(markdown_text: str, min_cols: int) -> list[list[str]]:
-    """Extract non-separator rows from Markdown tables with at least min_cols columns."""
-    cleaned = re.sub(r"```[\s\S]*?```", "", re.sub(r"<!--[\s\S]*?-->", "", markdown_text))
-    rows: list[list[str]] = []
-    for line in cleaned.splitlines():
-        s = line.strip()
-        if not s.startswith("|") or not s.endswith("|"):
+def generate_mermaid_dag(specs_by_id: dict[str, dict]) -> str:
+    """Generate deterministic Mermaid flowchart grouped by layers."""
+    layers_def = [
+        (0, "L0", "Layer 0: Meta Guideline"),
+        (1, "L1", "Layer 1: Core Rules"),
+        (2, "L2", "Layer 2: System Architecture"),
+        (3, "L3", "Layer 3: Components"),
+    ]
+    lines = ["```mermaid", "flowchart TD"]
+
+    for layer_num, sg_id, sg_title in layers_def:
+        layer_specs = [
+            meta for meta in specs_by_id.values() if meta.get("layer") == layer_num
+        ]
+        if not layer_specs:
             continue
-        cells = [c.strip() for c in s.strip("|").split("|")]
-        if len(cells) < min_cols:
+        layer_specs.sort(key=lambda m: m["path"])
+        lines.append(f'    subgraph {sg_id}["{sg_title}"]')
+        for meta in layer_specs:
+            sid = meta["spec_id"]
+            disp_path = meta["path"]
+            if disp_path.startswith("docs/"):
+                disp_path = disp_path[5:]
+            lines.append(f'        {sid}["{disp_path}"]')
+        lines.append("    end")
+
+    # Dependency edges
+    edges: list[tuple[str, str]] = []
+    for spec_id, meta in specs_by_id.items():
+        if meta.get("layer") == "-":
             continue
-        if all(set(c) <= {":", "-", " "} for c in cells if c):
-            continue
-        rows.append(cells)
-    return rows
+        for dep_id in meta.get("dependencies", []):
+            if dep_id in specs_by_id and specs_by_id[dep_id].get("layer") != "-":
+                edges.append((spec_id, dep_id))
+
+    edges.sort()
+    for src, dst in edges:
+        lines.append(f"    {src} --> {dst}")
+
+    lines.append("```")
+    return "\n".join(lines)
 
 
-def verify_spec_router(root: Path, specs_by_path: dict[str, dict], errors: list[str]) -> None:
-    """Verify docs/spec-router.md has a 1-to-1 bijection with all spec files and matching metadata."""
+def generate_routing_table(root: Path, specs_by_path: dict[str, dict]) -> str:
+    """Generate deterministic Markdown table for docs/spec-router.md."""
+    lines = [
+        "| Layer | 仕様書 | 主タグ | セクションサブタグ | 対象スコープ | 依存仕様 |",
+        "| :---: | :--- | :--- | :--- | :--- | :--- |",
+    ]
+
+    router_dir = root / "docs"
+
+    sorted_specs = sorted(
+        specs_by_path.values(),
+        key=lambda m: (LAYER_ORDER.get(m["layer"], 99), m["path"]),
+    )
+
+    for meta in sorted_specs:
+        layer_str = f"**{meta['layer']}**"
+
+        # Compute relative link from docs/ to file
+        target_path = root / meta["path"]
+        try:
+            rel_link = os.path.relpath(target_path, router_dir).replace("\\", "/")
+        except ValueError:
+            rel_link = meta["path"]
+        name = target_path.name if meta["path"] != "AGENTS.md" else "AGENTS.md"
+        if meta["path"].startswith("docs/system/") or meta["path"].startswith("docs/components/"):
+            name = meta["path"][5:]
+        spec_link = f"[{name}]({rel_link})"
+
+        primary_tag = f"`@spec:{meta['spec_id']}`"
+
+        # Subtags
+        subtags = meta.get("subtags", [])
+        if subtags:
+            clean_subtags = [t.removeprefix("@spec:") for t in subtags]
+            clean_subtags.sort()
+            subtags_str = ", ".join(f"`{t}`" for t in clean_subtags)
+        else:
+            subtags_str = "-"
+
+        # Scopes (target_files)
+        target_files = meta.get("target_files", [])
+        if target_files:
+            scopes_str = ", ".join(f"`{tf}`" for tf in target_files)
+        else:
+            scopes_str = "-"
+
+        # Dependencies
+        deps = meta.get("dependencies", [])
+        if deps:
+            deps_str = ", ".join(f"`{d}`" for d in deps)
+        else:
+            deps_str = "-"
+
+        lines.append(
+            f"| {layer_str} | {spec_link} | {primary_tag} | {subtags_str} | {scopes_str} | {deps_str} |"
+        )
+
+    return "\n".join(lines)
+
+
+def replace_slot(
+    text: str, start_marker: str, end_marker: str, replacement: str, errors: list[str], rel_path: str
+) -> str:
+    """Safely replace content between start_marker and end_marker using string slicing."""
+    s_idx = text.find(start_marker)
+    e_idx = text.find(end_marker)
+    if s_idx == -1 or e_idx == -1 or s_idx >= e_idx:
+        errors.append(
+            f"{rel_path}: Missing or malformed marker pair '{start_marker}' ... '{end_marker}'."
+        )
+        return text
+    after_start = s_idx + len(start_marker)
+    return text[:after_start] + "\n" + replacement + "\n" + text[e_idx:]
+
+
+def sync_or_verify_spec_router(
+    root: Path,
+    specs_by_path: dict[str, dict],
+    specs_by_id: dict[str, dict],
+    sync: bool,
+    errors: list[str],
+) -> None:
+    """Synchronize or verify that docs/spec-router.md matches generated DAG and routing table."""
     router_path = root / "docs" / "spec-router.md"
+    rel_path = "docs/spec-router.md"
     if not router_path.exists():
-        errors.append("docs/spec-router.md: Missing required routing index file.")
+        errors.append(f"{rel_path}: Missing required routing index file.")
         return
 
-    text = router_path.read_text(encoding="utf-8")
-    router_entries: dict[str, dict] = {}
+    current_text = normalize_text(router_path.read_text(encoding="utf-8"))
 
-    for cells in parse_markdown_table_rows(text, 6):
-        if cells[0].lower() == "layer":
-            continue
+    expected_dag = generate_mermaid_dag(specs_by_id)
+    expected_table = generate_routing_table(root, specs_by_path)
 
-        layer_str = re.sub(r"\*", "", cells[0]).strip()
-        link_match = re.search(r"\[[^\]]+\]\(([^)]+)\)", cells[1])
-        if not link_match:
-            errors.append(f"docs/spec-router.md: Invalid path link cell '{cells[1]}'.")
-            continue
-        rel_target = (router_path.parent / link_match.group(1).strip()).resolve()
-        try:
-            norm_path = rel_target.relative_to(root.resolve()).as_posix()
-        except ValueError:
-            errors.append(f"docs/spec-router.md: Path outside repository '{cells[1]}'.")
-            continue
+    temp_errors: list[str] = []
+    text_with_dag = replace_slot(
+        current_text, DAG_START_MARKER, DAG_END_MARKER, expected_dag, temp_errors, rel_path
+    )
+    expected_full_text = replace_slot(
+        text_with_dag, TABLE_START_MARKER, TABLE_END_MARKER, expected_table, temp_errors, rel_path
+    )
 
-        tag_str = cells[2].strip().strip("`")
-        subtags_list = [
-            f"@spec:{t.strip().removeprefix('@spec:')}"
-            for t in re.findall(r"`([^`]+)`", cells[3])
-            if t.strip() and t.strip() != "-"
-        ]
-        deps_raw = cells[5].strip()
-        if deps_raw in {"-", "`-`", ""}:
-            deps_list = []
-        else:
-            deps_list = [
-                d.strip().strip("`") for d in deps_raw.split(",") if d.strip().strip("`") != "-"
-            ]
+    if temp_errors:
+        errors.extend(temp_errors)
+        return
 
-        if norm_path in router_entries:
-            errors.append(f"docs/spec-router.md: Duplicate routing row for '{norm_path}'.")
-        router_entries[norm_path] = {
-            "layer": int(layer_str) if layer_str.isdigit() else layer_str,
-            "tag": tag_str,
-            "subtags": subtags_list,
-            "deps": deps_list,
-        }
-
-    expected_paths = set(specs_by_path.keys())
-    registered_paths = set(router_entries.keys())
-
-    for missing in sorted(expected_paths - registered_paths):
-        errors.append(f"docs/spec-router.md: Spec file '{missing}' is not registered in routing table.")
-    for extra in sorted(registered_paths - expected_paths):
-        errors.append(f"docs/spec-router.md: Registered path '{extra}' does not exist as a spec file.")
-
-    for path in sorted(expected_paths & registered_paths):
-        fm = specs_by_path[path]
-        row = router_entries[path]
-        if row["layer"] != fm["layer"]:
+    if sync:
+        router_path.write_text(expected_full_text, encoding="utf-8", newline="\n")
+        print(f"Synchronized {rel_path} successfully (Mermaid DAG & Routing table).")
+    else:
+        if current_text != expected_full_text:
             errors.append(
-                f"docs/spec-router.md: Layer mismatch for '{path}': router has '{row['layer']}', "
-                f"frontmatter has '{fm['layer']}'."
-            )
-        expected_tag = f"@spec:{fm['spec_id']}"
-        if row["tag"] != expected_tag:
-            errors.append(
-                f"docs/spec-router.md: Primary tag mismatch for '{path}': router has '{row['tag']}', "
-                f"expected '{expected_tag}'."
-            )
-        if sorted(row["subtags"]) != sorted(fm["subtags"]):
-            errors.append(
-                f"docs/spec-router.md: Section sub-tags mismatch for '{path}': "
-                f"router has {row['subtags']}, file has {fm['subtags']}."
-            )
-        if sorted(row["deps"]) != sorted(fm["dependencies"]):
-            errors.append(
-                f"docs/spec-router.md: Dependencies mismatch for '{path}': router has {row['deps']}, "
-                f"frontmatter has {fm['dependencies']}."
+                f"{rel_path}: Router DAG or routing table is out of sync with spec frontmatters. "
+                f"Run 'python .agents/skills/spec-verification/scripts/verify_specs.py --sync' to update."
             )
 
 
@@ -292,7 +386,7 @@ def verify_strict_mode(root: Path, spec_files: list[str], errors: list[str]) -> 
         check_files.append("README.md")
 
     for rel_path in check_files:
-        content = (root / rel_path).read_text(encoding="utf-8")
+        content = normalize_text((root / rel_path).read_text(encoding="utf-8"))
         for pat, desc in PLACEHOLDER_PATTERNS:
             if re.search(pat, content):
                 errors.append(f"{rel_path}: {desc} found in --strict mode.")
@@ -303,7 +397,7 @@ def verify_strict_mode(root: Path, spec_files: list[str], errors: list[str]) -> 
         errors.append("docs/system/architecture.md: Missing architecture spec.")
         return
 
-    raw_arch = arch_path.read_text(encoding="utf-8")
+    raw_arch = normalize_text(arch_path.read_text(encoding="utf-8"))
     mapped_component_paths: set[str] = set()
 
     for cells in parse_markdown_table_rows(raw_arch, 5):
@@ -343,7 +437,7 @@ def verify_strict_mode(root: Path, spec_files: list[str], errors: list[str]) -> 
 
     required_headings = ["## 1.", "## 2.", "## 3.", "## 4."]
     for comp_path in sorted(actual_components):
-        comp_text = (root / comp_path).read_text(encoding="utf-8")
+        comp_text = normalize_text((root / comp_path).read_text(encoding="utf-8"))
         comp_stem = Path(comp_path).stem
         for h in required_headings:
             if h not in comp_text:
@@ -358,6 +452,23 @@ def verify_strict_mode(root: Path, spec_files: list[str], errors: list[str]) -> 
                 )
 
 
+def parse_markdown_table_rows(markdown_text: str, min_cols: int) -> list[list[str]]:
+    """Extract non-separator rows from Markdown tables with at least min_cols columns."""
+    cleaned = re.sub(r"```[\s\S]*?```", "", re.sub(r"<!--[\s\S]*?-->", "", markdown_text))
+    rows: list[list[str]] = []
+    for line in cleaned.splitlines():
+        s = line.strip()
+        if not s.startswith("|") or not s.endswith("|"):
+            continue
+        cells = [c.strip() for c in s.strip("|").split("|")]
+        if len(cells) < min_cols:
+            continue
+        if all(set(c) <= {":", "-", " "} for c in cells if c):
+            continue
+        rows.append(cells)
+    return rows
+
+
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
@@ -369,9 +480,14 @@ def main() -> int:
         action="store_true",
         help="Enable strict post-bootstrap checks (no placeholders, no BOOTSTRAP.md, 1:1 component map).",
     )
+    parser.add_argument(
+        "--sync",
+        action="store_true",
+        help="Automatically synchronize docs/spec-router.md (Mermaid DAG and routing table) from spec frontmatters.",
+    )
     args = parser.parse_args()
 
-    root = Path(__file__).resolve().parents[4]
+    root = find_repo_root()
     errors: list[str] = []
 
     # 1. Check immutable files exist
@@ -387,7 +503,7 @@ def main() -> int:
     # 2. Parse and validate each spec file
     for rel_path in spec_files:
         full_path = root / rel_path
-        text = full_path.read_text(encoding="utf-8")
+        text = normalize_text(full_path.read_text(encoding="utf-8"))
         fm, body = parse_simple_yaml_frontmatter(text, rel_path, errors)
         if not fm:
             continue
@@ -419,8 +535,8 @@ def main() -> int:
 
         if status not in {"draft", "stable"}:
             errors.append(f"{rel_path}: Invalid status '{status}' (must be 'draft' or 'stable').")
-        if not isinstance(layer, int) or layer not in {0, 1}:
-            errors.append(f"{rel_path}: Invalid layer '{layer}' (must be 0 or 1).")
+        if layer not in VALID_LAYERS:
+            errors.append(f"{rel_path}: Invalid layer '{layer}' (must be 0, 1, 2, 3, or '-').")
         if not isinstance(target_files, list) or not isinstance(dependencies, list):
             errors.append(f"{rel_path}: 'target_files' and 'dependencies' must be lists.")
             continue
@@ -429,6 +545,7 @@ def main() -> int:
             errors.append(
                 f"{rel_path}: Duplicate spec_id '{spec_id}' (already defined in {specs_by_id[spec_id]['path']})."
             )
+
         # Check @spec tags in body
         tags_in_file = re.findall(r"<!--\s*(@spec:[a-zA-Z0-9_\-]+)\s*-->", body)
         primary_tag = f"@spec:{spec_id}"
@@ -469,7 +586,6 @@ def main() -> int:
                 if pattern == "**/*":
                     continue
                 matches = glob.glob(str(root / pattern), recursive=True)
-                # Allow template glob docs/components/*.md if _template.md exists
                 if not matches:
                     errors.append(
                         f"{rel_path}: target_files pattern '{pattern}' matched 0 files on disk."
@@ -481,13 +597,17 @@ def main() -> int:
     # Check relative links in README.md and BOOTSTRAP.md if present
     for root_doc in ["README.md", "BOOTSTRAP.md"]:
         if (root / root_doc).exists():
-            check_relative_links(root, root_doc, (root / root_doc).read_text(encoding="utf-8"), errors)
+            check_relative_links(
+                root, root_doc, normalize_text((root / root_doc).read_text(encoding="utf-8")), errors
+            )
 
-    # 3. Verify DAG and spec-router.md
+    # 3. Verify DAG (cycles & layer inversions & router reverse dependencies)
     check_dag_cycles(specs_by_id, errors)
-    verify_spec_router(root, specs_by_path, errors)
 
-    # 4. Strict checks if requested
+    # 4. Synchronize or verify spec-router.md
+    sync_or_verify_spec_router(root, specs_by_path, specs_by_id, args.sync, errors)
+
+    # 5. Strict checks if requested
     if args.strict:
         verify_strict_mode(root, spec_files, errors)
 

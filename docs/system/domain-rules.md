@@ -1,7 +1,7 @@
 ---
 spec_id: domain-rules
 title: ドメイン用語 ＆ ドメイン不可侵ルール
-layer: 1
+layer: 2
 category: domain-rule
 status: draft
 target_files:
