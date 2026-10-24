@@ -260,8 +260,8 @@ def generate_mermaid_dag(specs_by_id: dict[str, dict]) -> str:
 def generate_routing_table(root: Path, specs_by_path: dict[str, dict]) -> str:
     """Generate deterministic Markdown table for docs/spec-router.md."""
     lines = [
-        "| Layer | 仕様書 | 主タグ | セクションサブタグ | 対象スコープ | 依存仕様 |",
-        "| :---: | :--- | :--- | :--- | :--- | :--- |",
+        "| Layer | 仕様書 | タイトル | 主タグ | セクションサブタグ | 対象スコープ | 依存仕様 |",
+        "| :---: | :--- | :--- | :--- | :--- | :--- | :--- |",
     ]
 
     router_dir = root / "docs"
@@ -284,6 +284,8 @@ def generate_routing_table(root: Path, specs_by_path: dict[str, dict]) -> str:
         if meta["path"].startswith("docs/system/") or meta["path"].startswith("docs/components/"):
             name = meta["path"][5:]
         spec_link = f"[{name}]({rel_link})"
+
+        title_str = meta.get("title", "").strip()
 
         primary_tag = f"`@spec:{meta['spec_id']}`"
 
@@ -311,7 +313,7 @@ def generate_routing_table(root: Path, specs_by_path: dict[str, dict]) -> str:
             deps_str = "-"
 
         lines.append(
-            f"| {layer_str} | {spec_link} | {primary_tag} | {subtags_str} | {scopes_str} | {deps_str} |"
+            f"| {layer_str} | {spec_link} | {title_str} | {primary_tag} | {subtags_str} | {scopes_str} | {deps_str} |"
         )
 
     return "\n".join(lines)
@@ -563,6 +565,7 @@ def main() -> int:
         meta = {
             "path": rel_path,
             "spec_id": spec_id,
+            "title": title,
             "layer": layer,
             "status": status,
             "target_files": target_files,
