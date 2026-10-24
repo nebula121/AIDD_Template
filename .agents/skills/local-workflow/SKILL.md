@@ -39,7 +39,7 @@ flowchart TD
 * **調査と要求分析**:
   * 関連仕様書（`docs/spec-router.md`）やコードを調査し、変更対象と受入条件を特定する。
 * **実装計画書の Artifact 出力**:
-  * `write_to_file` を用い、`<appDataDir>\brain\<conversation-id>\implementation_plan.md` に計画書を作成する。
+  * `write_file` を用い、`<appDataDir>\brain\<conversation-id>\implementation_plan.md` に計画書を作成する。
   * `ArtifactMetadata` には `UserFacing: true`, `RequestFeedback: true` を指定し、UI上に「Proceed」ボタンを表示させる。
 * **チャット案内ルール**:
   * チャット本文で計画全文を再要約せず、Artifact へのファイルリンクと判断・確認が必要な論点のみを簡潔に提示してユーザーの承認を仰ぐ。

@@ -9,7 +9,7 @@
 Pull Requestを作成する前に、以下の4つの条件をすべて満たしていることを確認する。
 
 1. **ドキュメントの整合性維持**:
-   - コード変更に伴い、関連する仕様書（`docs/specs/*.md`、`docs/overview.md`、`AGENTS.md` 等）を必要に応じて更新・同期していること。
+   - コード変更に伴い、関連する仕様書（`docs/system/*.md`、`docs/components/*.md`、`AGENTS.md` 等）を必要に応じて更新・同期していること。
 2. **テストコードの整合性維持・作成**:
    - 仕様書の受入条件を検証するテストが作成・更新されていること。
 3. **ローカル検証・自己修復の通過**:
@@ -33,7 +33,7 @@ Pull Requestを作成する前に、以下の4つの条件をすべて満たし�
    - エージェントはこの要約（変更ファイル一覧と行数統計）を読み込み、最小限のトークンで変更の全容を把握する。
 
 2. **Walkthrough Artifact の作成 (`walkthrough.md`)**:
-   - `write_to_file` を用い、`<appDataDir>\brain\<conversation-id>\walkthrough.md` を作成する。
+   - `write_file` を用い、`<appDataDir>\brain\<conversation-id>\walkthrough.md` を作成する。
    - `ArtifactMetadata` には `UserFacing: true`, `RequestFeedback: false`（またはPR作成承認を求める場合は `true`）を指定する。
    - 内容には、変更概要、変更ファイル一覧（diff要約）、テスト・Lint実行エビデンス（PASSログ）、残課題を含める。
    - **チャット上への全文再出力は絶対禁止 (**MUST NOT**)**。チャットには要約と Artifact へのリンクのみを案内する。

@@ -18,7 +18,7 @@
 | **汎用・その他** | `Makefile`, `Taskfile.yml` | `make test` / `task test` |
 
 > [!IMPORTANT]
-> - `docs/core-rules.md` や `docs/specs/*.md` に固有の検証コマンドやテスト実行要件が記載されている場合は、それを最優先で遵守すること。
+> - `docs/core-rules.md` や `docs/system/tech-stack.md`、`docs/components/*.md` に固有の検証コマンドやテスト実行要件が記載されている場合は、それを最優先で遵守すること。
 > - 特殊な構成がある場合は、`package.json` の `"scripts"` やローカルの設定ファイルを確認して実行コマンドを特定する。
 
 ---
@@ -34,7 +34,7 @@
      - PowerShell: `npm test 2>&1 | Select-String -Pattern "error", "fail", "assert" -Context 2, 5`
      - bash: `npm test 2>&1 | grep -E "FAIL|ERROR" -A 5 -B 2`
 3. **一時ファイルへの退避と部分読込**:
-   - ログが長大になりそうな場合は一時ファイル（例: `test_output.log`）に出力し、`view_file` 等で末尾（エラー発生箇所）のみをピンポイントで確認する。確認後は速やかに一時ログを削除する。
+   - ログが長大になりそうな場合は一時ファイル（例: `test_output.log`）に出力し、`read_file` 等で末尾（エラー発生箇所）のみをピンポイントで確認する。確認後は速やかに一時ログを削除する。
 
 ---
 

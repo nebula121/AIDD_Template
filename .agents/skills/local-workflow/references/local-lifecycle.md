@@ -40,7 +40,7 @@ python .agents/skills/local-workflow/scripts/commit_wip.py -m "作業内容の�
    ```
    - 生成された `diff_summary_for_agent.txt` を読み込み、変更ファイルと行数を把握する。
 2. **Walkthrough Artifact の作成 (`walkthrough.md`)**:
-   - `write_to_file` を用い、`<appDataDir>\brain\<conversation-id>\walkthrough.md` を作成する。
+   - `write_file` を用い、`<appDataDir>\brain\<conversation-id>\walkthrough.md` を作成する。
    - `ArtifactMetadata` には `UserFacing: true`, `RequestFeedback: true` を指定し、UI上に「Proceed」ボタンを表示させてマージ承認を要請する。
    - 内容には、概要、変更内容（設計判断を含む）、検証結果（全件パスの事実）、派生課題を含める。
    - チャット上では長大な全文を再要約せず、サマリーと Artifact へのリンクのみを案内する。
