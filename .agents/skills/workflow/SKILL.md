@@ -8,11 +8,9 @@ description: GitHub Issue起票・作業ブランチ作成から自律テスト�
 本ドキュメントは、プロジェクトにおけるAIエージェントの開発ライフサイクル全体を統括する標準ワークフローである。詳細な技術手順や運用規則は、Progressive Disclosure（段階的情報開示）に基づき `references/` 配下の各リファレンスを参照すること。
 
 > [!IMPORTANT]
-> - **成果物言語**: AIが作成する成果物ドキュメント（Implementation Plan、Walkthrough、PR本文、Issue等）は、原則として**日本語**で記述すること。
-> - **調査と実装の分離**: ユーザー指示が「確認・調査」である場合はコードやドキュメントを変更せず結果報告に留めること。
+> - **共通行動規範（SSOT）**: 言語・エンコード（日本語・UTF-8）、調査と変更の分離、Ponytail最小構成等の常時行動制約は [AGENTS.md](../../../AGENTS.md) を正本として厳守すること (**MUST**)。
 > - **不可侵ガードレール（ブランチ保護）**: コードや仕様書を1文字でも編集する前に、必ず作業ブランチに切り替えること (**MUST**)。baseブランチ（`main` 等）上での直接編集・直接コミット・直接Pushは絶対禁止 (**MUST NOT**)。
 > - **Artifacts原則**: 実装計画書（`implementation_plan.md`）および完了報告（`walkthrough.md`）は必ず Antigravity Artifacts ディレクトリ（`<appDataDir>\brain\<conversation-id>\`）に出力し、チャット本文への長大な全文再要約・二重出力を禁じる (**MUST NOT**)。
-> - **Ponytail原則**: 仕様書にない不要な抽象化や過剰なボイラープレートを排除し、最短・最善の最小差分で実装すること。
 
 ---
 
@@ -79,7 +77,7 @@ flowchart TD
 ## 4. テスト・不可侵検証と自己修復 (Self-Correction)
 
 * **自律的な品質検証**:
-  * コード修正後、Walkthrough作成やPR起票を行う前に、プロジェクト固有の標準テストおよびLinter（`npm test`, `pytest`, `cargo test` 等）を自律判定して実行する。
+  * コード・仕様修正後、Walkthrough作成やPR起票を行う前に、仕様書整合性検証（`python .agents/skills/spec-verification/scripts/verify_specs.py`）およびプロジェクト固有の標準テスト・Linter（`npm test`, `pytest`, `cargo test` 等）を実行する (**MUST**)。
 * **自己修復プロトコル**:
   * テストやLintが失敗した場合は、最大3回まで自律修復を試みる。
   * 巨大ログによるトークン消費を防ぐログ抑制テクニックや詳細な手順は [**references/self-correction.md**](references/self-correction.md) を参照すること。
