@@ -1,7 +1,7 @@
 ---
 spec_id: spec-router
 title: 仕様書ルーティングマップ
-layer: 1
+layer: "-"
 category: index
 status: stable
 target_files:
@@ -13,23 +13,61 @@ dependencies:
 
 <!-- @spec:spec-router -->
 
-プロジェクト全体の仕様書インデックス正本（SSOT）。部分読込時は以下の主タグまたはセクションサブタグを `grep` して行番号を特定すること (**MUST**)。
+プロジェクト全体の仕様書インデックス正本（SSOT）。部分読込時は以下の主タグまたはセクションサブタグを `grep` して行番号を特定すること (**MUST**)。本ファイル内のダイアグラムおよびテーブルは、各仕様書の Frontmatter から完全自動生成されます。手動編集は行わないでください (**MUST NOT**)。
 
 ---
 
-## 1. 仕様書ルーティング ＆ サブタグ一覧
+## 1. 仕様書依存ネットワークグラフ
+
+<!-- @generated:spec-dag-start -->
+```mermaid
+flowchart TD
+    subgraph L0["Layer 0: Meta Guideline"]
+        agents-guideline["AGENTS.md"]
+    end
+    subgraph L1["Layer 1: Core Rules"]
+        core-rules["core-rules.md"]
+    end
+    subgraph L2["Layer 2: System Architecture"]
+        system-architecture["system/architecture.md"]
+        domain-rules["system/domain-rules.md"]
+        system-overview["system/overview.md"]
+        tech-stack["system/tech-stack.md"]
+    end
+    subgraph L3["Layer 3: Components"]
+        component-template["components/_template.md"]
+    end
+    component-template --> core-rules
+    component-template --> domain-rules
+    component-template --> system-architecture
+    component-template --> tech-stack
+    core-rules --> agents-guideline
+    domain-rules --> core-rules
+    domain-rules --> system-overview
+    system-architecture --> core-rules
+    system-architecture --> domain-rules
+    system-architecture --> system-overview
+    system-overview --> core-rules
+    tech-stack --> core-rules
+    tech-stack --> system-architecture
+```
+<!-- @generated:spec-dag-end -->
+
+---
+
+## 2. 仕様書ルーティング ＆ サブタグ一覧
 
 <!-- @spec:spec-routing-table -->
 
-新規コンポーネント仕様書（`docs/components/<id>.md`）を追加した際は、必ず本表に行を追加し、Frontmatterおよびファイル内のサブタグ（`component-<id>-scope`, `component-<id>-interface`, `component-<id>-contract`, `component-<id>-verification`）と完全一致させること (**MUST**)。
-
+<!-- @generated:spec-table-start -->
 | Layer | 仕様書 | 主タグ | セクションサブタグ | 対象スコープ | 依存仕様 |
 | :---: | :--- | :--- | :--- | :--- | :--- |
-| **0** | [AGENTS.md](../AGENTS.md) | `@spec:agents-guideline` | `agent-three-layer-structure`, `agent-invincible-rules`, `agent-context-retrieval`, `agent-task-execution` | `AGENTS.md` | `-` |
+| **0** | [AGENTS.md](../AGENTS.md) | `@spec:agents-guideline` | `agent-context-retrieval`, `agent-invincible-rules`, `agent-task-execution`, `agent-three-layer-structure` | `AGENTS.md` | - |
+| **-** | [spec-router.md](spec-router.md) | `@spec:spec-router` | `spec-routing-table` | `docs/**/*.md` | `agents-guideline` |
 | **1** | [core-rules.md](core-rules.md) | `@spec:core-rules` | `architecture-and-security-rules`, `lifecycle-and-test-rules` | `**/*` | `agents-guideline` |
-| **1** | [spec-router.md](spec-router.md) | `@spec:spec-router` | `spec-routing-table` | `docs/**/*.md` | `agents-guideline` |
-| **1** | [system/overview.md](system/overview.md) | `@spec:system-overview` | `system-purpose`, `system-scope` | `README.md` | `core-rules` |
-| **1** | [system/domain-rules.md](system/domain-rules.md) | `@spec:domain-rules` | `domain-glossary`, `domain-invariants` | `**/*` | `core-rules`, `system-overview` |
-| **1** | [system/architecture.md](system/architecture.md) | `@spec:system-architecture` | `architecture-diagram`, `component-map`, `data-flow` | `**/*` | `core-rules`, `system-overview`, `domain-rules` |
-| **1** | [system/tech-stack.md](system/tech-stack.md) | `@spec:tech-stack` | `runtime-stack`, `directory-structure`, `verification-commands` | `**/*` | `core-rules`, `system-architecture` |
-| **1** | [components/_template.md](components/_template.md) | `@spec:component-template` | `component-template-schema`, `component-template-scope`, `component-template-interface`, `component-template-contract`, `component-template-verification` | `docs/components/*.md` | `core-rules`, `domain-rules`, `system-architecture`, `tech-stack` |
+| **2** | [system/architecture.md](system/architecture.md) | `@spec:system-architecture` | `architecture-diagram`, `component-map`, `data-flow` | `**/*` | `core-rules`, `system-overview`, `domain-rules` |
+| **2** | [system/domain-rules.md](system/domain-rules.md) | `@spec:domain-rules` | `domain-glossary`, `domain-invariants` | `**/*` | `core-rules`, `system-overview` |
+| **2** | [system/overview.md](system/overview.md) | `@spec:system-overview` | `system-purpose`, `system-scope` | `README.md` | `core-rules` |
+| **2** | [system/tech-stack.md](system/tech-stack.md) | `@spec:tech-stack` | `directory-structure`, `runtime-stack`, `verification-commands` | `**/*` | `core-rules`, `system-architecture` |
+| **3** | [components/_template.md](components/_template.md) | `@spec:component-template` | `component-template-contract`, `component-template-interface`, `component-template-schema`, `component-template-scope`, `component-template-verification` | `docs/components/*.md` | `core-rules`, `domain-rules`, `system-architecture`, `tech-stack` |
+<!-- @generated:spec-table-end -->
