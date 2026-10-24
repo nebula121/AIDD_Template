@@ -54,6 +54,10 @@ def main():
     with open(task_path, "r", encoding="utf-8") as f:
         content = f.read()
 
+    # Update Frontmatter status to completed
+    content = re.sub(r'status:\s*["\']?in-progress["\']?', 'status: "completed"', content)
+
+    # Update body status to completed
     content = re.sub(r"- \*\*ステータス\*\*: .*", "- **ステータス**: 🟢 完了", content)
     if "- **完了日**:" in content:
         content = re.sub(r"- \*\*完了日\*\*: .*", f"- **完了日**: {today_str}", content)
@@ -68,23 +72,48 @@ def main():
     shutil.move(task_path, target_path)
     print(f"Moved task document to: docs/tasks/completed/{task_file_name}")
 
-    # 3. Update docs/tasks/README.md if exists
+    # 3. Update docs/tasks/README.md if exists (move entry from active to completed section)
     if os.path.exists(readme_path):
         with open(readme_path, "r", encoding="utf-8") as f:
             readme_content = f.read()
 
-        # Update link path from task_file_name to completed/task_file_name
         escaped_name = re.escape(task_file_name)
-        pattern = r'\]\(' + escaped_name + r'\)'
-        replacement = f"](completed/{task_file_name})"
-        readme_content = re.sub(pattern, replacement, readme_content)
+        # Find matching line in active tasks (e.g. - [🟡 進行中: Title](task_file_name))
+        line_pattern = rf"^[ \t]*- \[.*\]\({escaped_name}\)[ \t]*\r?\n?"
+        matched = re.findall(line_pattern, readme_content, flags=re.MULTILINE)
 
-        # Update status icon in link label
-        readme_content = re.sub(r'🟡 進行中: ([^\]]+)\]\(completed/' + escaped_name + r'\)', r'🟢 完了: \1](completed/' + task_file_name + r')', readme_content)
+        if matched:
+            # Remove from active tasks
+            readme_content = re.sub(line_pattern, "", readme_content, flags=re.MULTILINE)
+
+            # Build completed line
+            raw_line = matched[0].strip()
+            comp_line = re.sub(r'\]\(' + escaped_name + r'\)', f"](completed/{task_file_name})", raw_line)
+            comp_line = re.sub(r'🟡 進行中:', '🟢 完了:', comp_line)
+            if not comp_line.endswith("\n"):
+                comp_line += "\n"
+
+            # Append under ## 完了タスク (Completed Tasks)
+            completed_header = "## 完了タスク (Completed Tasks)"
+            if completed_header in readme_content:
+                readme_content = re.sub(
+                    r"(## 完了タスク \(Completed Tasks\)\s*)",
+                    rf"\1{comp_line}",
+                    readme_content,
+                    count=1
+                )
+            else:
+                readme_content = readme_content.rstrip() + f"\n\n{completed_header}\n{comp_line}"
+        else:
+            # Fallback if specific line not matched
+            pattern = r'\]\(' + escaped_name + r'\)'
+            replacement = f"](completed/{task_file_name})"
+            readme_content = re.sub(pattern, replacement, readme_content)
+            readme_content = re.sub(r'🟡 進行中: ([^\]]+)\]\(completed/' + escaped_name + r'\)', r'🟢 完了: \1](completed/' + task_file_name + r')', readme_content)
 
         with open(readme_path, "w", encoding="utf-8") as f:
             f.write(readme_content)
-        print("Updated docs/tasks/README.md link and status to completed.")
+        print("Updated docs/tasks/README.md: moved task entry to completed section.")
 
     print(f"Successfully completed task '{task_file_name}'.")
 

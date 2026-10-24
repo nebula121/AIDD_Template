@@ -47,9 +47,26 @@ python .agents/skills/local-workflow/scripts/commit_wip.py -m "作業内容の�
 
 ---
 
-## 4. 人間承認後のローカルマージ (`merge_branch.py`)
+## 4. タスク完了処理とコミット (`complete_task.py`)
 
-人間がチャット上で「マージして」「OK」「進めて」と承認を出した後、以下のスクリプトを実行して安全にローカルマージを行う。
+人間からマージ承認を得た後、まず作業ブランチ上でタスク文書のステータス更新・保管移動を行い、コミットする。
+
+```bash
+python .agents/skills/local-workflow/scripts/complete_task.py -t 001-setup-auth.md
+python .agents/skills/local-workflow/scripts/commit_wip.py -m "docs: complete task 001-setup-auth" -t 001-setup-auth
+```
+
+- スクリプトにより以下が自動実行される：
+  1. `docs/tasks/001-setup-auth.md` 内の Frontmatter ステータスを `status: "completed"`、本文ステータスを `🟢 完了`、完了日を当日の日付に更新。
+  2. ファイルを `docs/tasks/completed/001-setup-auth.md` に移動。
+  3. `docs/tasks/README.md` 内のリンクを `## 進行中 / 未着手タスク` から `## 完了タスク (Completed Tasks)` 配下へ移動し、アイコンを更新。
+  4. `commit_wip.py` により完了状態を作業ブランチ上でコミットする。
+
+---
+
+## 5. 人間承認後のローカルマージ (`merge_branch.py`)
+
+タスク完了コミット後、以下のスクリプトを実行して安全にローカルマージを行う。
 
 ```bash
 python .agents/skills/local-workflow/scripts/merge_branch.py -b task/001-setup-auth
@@ -62,19 +79,4 @@ python .agents/skills/local-workflow/scripts/merge_branch.py -b task/001-setup-a
   4. マージ済み作業ブランチの削除
   5. 一時差分ファイルの削除
   6. `git log -n 1 main` によるマージコミットの検証出力
-
----
-
-## 5. タスク完了処理 (`complete_task.py`)
-
-マージ完了後、タスク文書のステータス更新と保管移動を行う。
-
-```bash
-python .agents/skills/local-workflow/scripts/complete_task.py -t 001-setup-auth.md
-```
-
-- スクリプトにより以下が自動実行される：
-  1. `docs/tasks/001-setup-auth.md` 内のステータスを `🟢 完了`、完了日を当日の日付に更新。
-  2. ファイルを `docs/tasks/completed/001-setup-auth.md` に移動。
-  3. `docs/tasks/README.md` 内のリンクを `completed/` 配下へ書き換え、アイコンを更新。
-4. 人間に「タスク完了およびマージが正常に完了しました」と最終報告を行う。
+- マージ完了後、人間に「タスク完了およびマージが正常に完了しました」と最終報告を行う。

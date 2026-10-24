@@ -99,13 +99,15 @@ flowchart TD
 
 人間から承認（Proceedボタンまたはチャットでの承認）を受けた後、以下のステップを順次実行する。
 
-1. **ローカルマージとブランチ削除**:
+1. **タスク文書の完了移動とコミット（作業ブランチ上）**:
+   * 作業ブランチ上でタスク完了処理を実行し、ステータスを `🟢 完了` に更新して `docs/tasks/completed/` に移動した上でコミットする。
+   ```bash
+   python .agents/skills/local-workflow/scripts/complete_task.py -t 001-task-name.md
+   python .agents/skills/local-workflow/scripts/commit_wip.py -m "docs: complete task 001-task-name" -t 001-task-name
+   ```
+2. **ローカルマージとブランチ削除**:
+   * マージスクリプトにより、baseブランチへの切り替え、マージ、作業ブランチの削除を一括実行する。完了後のbaseブランチは未コミット変更のないクリーンな状態を維持する。
    ```bash
    python .agents/skills/local-workflow/scripts/merge_branch.py -b task/001-task-name
    ```
-2. **タスク文書の完了移動**:
-   ```bash
-   python .agents/skills/local-workflow/scripts/complete_task.py -t 001-task-name.md
-   ```
-   * ステータスが `🟢 完了` に更新され、`docs/tasks/completed/` に移動される。
    * 詳細なライフサイクル運用は [**references/local-lifecycle.md**](references/local-lifecycle.md) を参照すること。
