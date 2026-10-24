@@ -1,8 +1,6 @@
 ---
 spec_id: tech-stack
 title: 技術スタック ＆ 開発検証環境
-layer: 2
-category: environment
 status: draft
 target_files:
   - "**/*"

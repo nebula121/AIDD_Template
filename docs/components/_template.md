@@ -1,8 +1,6 @@
 ---
 spec_id: component-template
 title: コンポーネント仕様書テンプレート
-layer: 3
-category: template
 status: stable
 target_files:
   - docs/components/*.md
@@ -26,7 +24,7 @@ dependencies:
 
 | 項目 | 規約 (`<id>` はファイル名 `<id>.md` の識別子) |
 | :--- | :--- |
-| **Frontmatter必須キー** | `spec_id: component-<id>`, `title: <コンポーネント名>`, `layer: 3`, `category: component`, `status: draft \| stable`, `target_files: [...]`, `dependencies: [core-rules, domain-rules, system-architecture, tech-stack, ...]` |
+| **Frontmatter必須キー** | `spec_id: component-<id>`, `title: <コンポーネント名>`, `status: draft \| stable`, `target_files: [...]`, `dependencies: [core-rules, domain-rules, system-architecture, tech-stack, ...]`（※Layer 3は配置パスから自動導出されるため記載不要） |
 | **見出し1 (`#`) 規約** | Frontmatter の `title` と完全一致させる（括弧書きのファイル名や英訳は付けない）。 |
 | **必須サブタグ（全5個）** | 冒頭: `component-<id>` / 第1章: `component-<id>-scope` / 第2章: `component-<id>-interface` / 第3章: `component-<id>-contract` / 第4章: `component-<id>-verification` |
 | **受入条件の記述基準** | 曖昧な形容詞（「適切に」「安全に」「高速に」）の使用を禁じ、自動テストで100%機械判定可能な条件のみを記述する (**MUST**)。<br>❌ **Bad**: 不正な入力時は適切にエラー処理し、安全に終了すること。<br>✅ **Good**: 入力が空または256文字超過時、`ValidationError` を送出し、DB書き込み件数が `0` であること (**MUST**)。 |

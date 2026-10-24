@@ -1,8 +1,6 @@
 ---
 spec_id: agents-guideline
 title: AI行動規範
-layer: 0
-category: guideline
 status: stable
 target_files:
   - AGENTS.md

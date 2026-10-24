@@ -1,4 +1,5 @@
 # AIDD Workflow & Generated Views (Non-SSOT)
+ref/
 diff_summary_for_agent.txt
 docs/**/*.html
 *.spec.html

@@ -1,8 +1,6 @@
 ---
 spec_id: system-overview
 title: システム概要 ＆ スコープ
-layer: 2
-category: overview
 status: draft
 target_files:
   - README.md
