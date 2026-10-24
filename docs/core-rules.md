@@ -1,8 +1,6 @@
 ---
 spec_id: core-rules
 title: コア不可侵ルール
-layer: 1
-category: core-rule
 status: stable
 target_files:
   - "**/*"

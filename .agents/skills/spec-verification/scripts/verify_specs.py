@@ -11,8 +11,6 @@ from pathlib import Path
 REQUIRED_FRONTMATTER_KEYS = {
     "spec_id",
     "title",
-    "layer",
-    "category",
     "status",
     "target_files",
     "dependencies",
@@ -30,8 +28,22 @@ PLACEHOLDER_PATTERNS = [
     (r"<!--\s*GUIDE:", "Unremoved template guide comment '<!-- GUIDE: ... -->'"),
 ]
 
-VALID_LAYERS = {0, 1, 2, 3, "-"}
 LAYER_ORDER = {0: 0, "-": 1, 1: 2, 2: 3, 3: 4}
+
+
+def infer_layer_from_path(rel_path: str) -> int | str | None:
+    """Deterministically infer specification layer from repository-relative POSIX path."""
+    if rel_path == "AGENTS.md":
+        return 0
+    if rel_path == "docs/spec-router.md":
+        return "-"
+    if rel_path == "docs/core-rules.md":
+        return 1
+    if rel_path.startswith("docs/system/"):
+        return 2
+    if rel_path.startswith("docs/components/"):
+        return 3
+    return None
 
 DAG_START_MARKER = "<!-- @generated:spec-dag-start -->"
 DAG_END_MARKER = "<!-- @generated:spec-dag-end -->"
@@ -348,7 +360,9 @@ def sync_or_verify_spec_router(
         errors.append(f"{rel_path}: Missing required routing index file.")
         return
 
-    current_text = normalize_text(router_path.read_text(encoding="utf-8"))
+    raw_bytes = router_path.read_bytes()
+    line_ending = "\r\n" if b"\r\n" in raw_bytes else "\n"
+    current_text = normalize_text(raw_bytes.decode("utf-8"))
 
     expected_dag = generate_mermaid_dag(specs_by_id)
     expected_table = generate_routing_table(root, specs_by_path)
@@ -366,7 +380,7 @@ def sync_or_verify_spec_router(
         return
 
     if sync:
-        router_path.write_text(expected_full_text, encoding="utf-8", newline="\n")
+        router_path.write_text(expected_full_text, encoding="utf-8", newline=line_ending)
         print(f"Synchronized {rel_path} successfully (Mermaid DAG & Routing table).")
     else:
         if current_text != expected_full_text:
@@ -382,6 +396,13 @@ def verify_strict_mode(root: Path, spec_files: list[str], errors: list[str]) -> 
         errors.append(
             "BOOTSTRAP.md: File still exists in root. Delete BOOTSTRAP.md upon completing bootstrap."
         )
+    ref_dir = root / "ref"
+    if ref_dir.exists():
+        for leftover in sorted(ref_dir.rglob("BOOTSTRAP.md")):
+            rel_leftover = leftover.relative_to(root).as_posix()
+            errors.append(
+                f"{rel_leftover}: Template directory still exists in ref/. Delete the staged template in ref/ upon completion."
+            )
 
     check_files = list(spec_files)
     if (root / "README.md").exists():
@@ -517,10 +538,23 @@ def main() -> int:
             )
             continue
 
+        extra_keys = set(fm.keys()) - REQUIRED_FRONTMATTER_KEYS
+        if extra_keys:
+            errors.append(
+                f"{rel_path}: Unexpected/deprecated frontmatter keys: {', '.join(sorted(extra_keys))} "
+                f"(only {', '.join(sorted(REQUIRED_FRONTMATTER_KEYS))} are allowed; layer is auto-derived from path)."
+            )
+
+        layer = infer_layer_from_path(rel_path)
+        if layer is None:
+            errors.append(
+                f"{rel_path}: Spec file is located in an unrecognized directory for layer derivation."
+            )
+            continue
+
         spec_id = str(fm["spec_id"])
         title = str(fm["title"]).strip()
         status = str(fm["status"])
-        layer = fm["layer"]
         target_files = fm["target_files"]
         dependencies = fm["dependencies"]
 
@@ -537,8 +571,6 @@ def main() -> int:
 
         if status not in {"draft", "stable"}:
             errors.append(f"{rel_path}: Invalid status '{status}' (must be 'draft' or 'stable').")
-        if layer not in VALID_LAYERS:
-            errors.append(f"{rel_path}: Invalid layer '{layer}' (must be 0, 1, 2, 3, or '-').")
         if not isinstance(target_files, list) or not isinstance(dependencies, list):
             errors.append(f"{rel_path}: 'target_files' and 'dependencies' must be lists.")
             continue

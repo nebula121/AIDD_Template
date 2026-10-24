@@ -20,15 +20,19 @@ description: 仕様書群（AGENTS.mdおよびdocs/配下）のYAML Frontmatter�
 
 ## 2. 実行コマンドと検証モード
 
-### 2.1 通常モード（テンプレート状態・構造検証）
+### 2.1 通常モード（テンプレート状態・構造検証 ＆ `--sync` 自動同期）
 ```bash
+# ルーティング索引（docs/spec-router.md）の自動同期・再生成
+python .agents/skills/spec-verification/scripts/verify_specs.py --sync
+
+# 静的検証のみ実行
 python .agents/skills/spec-verification/scripts/verify_specs.py
 ```
 - **検査内容**:
-  1. **Frontmatter必須項目 ＆ 見出し1一致検証**: 全仕様書が必須7キーを持ち、Frontmatter の `title` と本文の `# (H1)` が完全一致し、本文に主タグを含むこと。
+  1. **Frontmatter必須項目 ＆ 見出し1一致検証**: 全仕様書が必須5キー（`spec_id`, `title`, `status`, `target_files`, `dependencies`）のみを持ち（不要な旧 `layer` / `category` 等の余分なキーを含まず）、配置パスから Layer（`0`, `-`, `1`, `2`, `3`）が自動導出され、Frontmatter の `title` と本文の `# (H1)` が完全一致し、本文に主タグを含むこと。
   2. **SSOT（一意性）検証**: 全ファイル間で `spec_id` および `<!-- @spec:... -->` タグに重複が存在しないこと。
-  3. **ルーティング全単射検証**: `docs/spec-router.md` の登録エントリと、実在する仕様書集合（`AGENTS.md` + `docs/**/*.md` ※`docs/tasks/` 除く）が過不足なく完全一致し、Layer・主タグ・セクションサブタグ・`dependencies` が完全一致していること。
-  4. **ドキュメントDAG検証**: `dependencies` に未定義の `spec_id` がなく、レイヤー逆流や閉路（循環参照）が存在しないこと。
+  3. **ルーティング全単射検証**: `docs/spec-router.md` の登録エントリと、実在する仕様書集合（`AGENTS.md` + `docs/**/*.md` ※`docs/tasks/` 除く）が過不足なく完全一致し、Layer・タイトル・主タグ・セクションサブタグ・`dependencies` が完全一致していること。
+  4. **ドキュメントDAG検証**: `dependencies` に未定義の `spec_id` がなく、レイヤー逆流やルーティング索引への逆依存、閉路（循環参照）が存在しないこと。
   5. **リンク＆パス実在検証**: Markdown内の相対ファイルリンクがすべて実在し、`status: stable` な仕様書の `target_files` が実在パス／Globにマッチすること。
   6. **不変ファイル保護検証**: 不変ファイル3種（`AGENTS.md`, `docs/core-rules.md`, `docs/components/_template.md`）が `status: stable` であり、未記入プレースホルダを含まないこと。
 
@@ -37,7 +41,7 @@ python .agents/skills/spec-verification/scripts/verify_specs.py
 python .agents/skills/spec-verification/scripts/verify_specs.py --strict
 ```
 - **追加検査内容**:
-  7. **`BOOTSTRAP.md` 削除確認**: リポジトリルートに初期整備用の `BOOTSTRAP.md` が残存していないこと。
+  7. **`BOOTSTRAP.md` ＆ `ref/` ステージング削除確認**: リポジトリルートおよび `ref/` 配下に初期整備・再適用用の `BOOTSTRAP.md`（テンプレート残骸）が残存していないこと。
   8. **未記入プレースホルダ残存ゼロ**: 全仕様書に `[要記入:`、`{{...}}`、`<!-- GUIDE:` 等のテンプレート残骸が残っていないこと。
   9. **コンポーネント1対1対応（全単射）検証**: `docs/system/architecture.md` のコンポーネント表と `docs/components/*.md`（`_template.md` 除く）が1対1で完全一致し、1件以上定義されており、各コンポーネント仕様書が必須4セクション構造を満たしていること。
 

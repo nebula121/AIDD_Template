@@ -1,8 +1,6 @@
 ---
 spec_id: spec-router
 title: 仕様書ルーティングマップ
-layer: "-"
-category: index
 status: stable
 target_files:
   - docs/**/*.md
