@@ -4,6 +4,20 @@ import os
 import json
 import argparse
 import subprocess
+from pathlib import Path
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8")
+
+def find_repo_root() -> Path:
+    """Find repository root by looking for .git or AGENTS.md in parents."""
+    current = Path(__file__).resolve()
+    for parent in current.parents:
+        if (parent / ".git").exists() or (parent / "AGENTS.md").exists():
+            return parent
+    return Path.cwd()
 
 def run_command(cmd, check=False, cwd=None, capture_output=True, text=True):
     return subprocess.run(cmd, check=check, cwd=cwd, capture_output=capture_output, text=text, encoding='utf-8', errors='replace')
@@ -19,8 +33,7 @@ def main():
 
     args = parser.parse_args()
 
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    root_dir = os.path.abspath(os.path.join(script_dir, "..", "..", "..", ".."))
+    root_dir = find_repo_root()
     os.chdir(root_dir)
 
     base_branch = args.base_branch
@@ -33,10 +46,10 @@ def main():
         "diff_summary_for_agent.txt"
     ]
     for tf in temp_files:
-        p = os.path.join(root_dir, tf)
-        if os.path.exists(p):
+        p = root_dir / tf
+        if p.exists():
             try:
-                os.remove(p)
+                p.unlink()
                 print(f"Removed temporary artifact: {tf}")
             except Exception:
                 pass

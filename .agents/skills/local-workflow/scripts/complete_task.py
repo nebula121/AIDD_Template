@@ -5,6 +5,20 @@ import re
 import datetime
 import argparse
 import shutil
+from pathlib import Path
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8")
+
+def find_repo_root() -> Path:
+    """Find repository root by looking for .git or AGENTS.md in parents."""
+    current = Path(__file__).resolve()
+    for parent in current.parents:
+        if (parent / ".git").exists() or (parent / "AGENTS.md").exists():
+            return parent
+    return Path.cwd()
 
 def main():
     parser = argparse.ArgumentParser(description="Complete local task document processing.")
@@ -16,10 +30,9 @@ def main():
     if not task_file_name.endswith(".md"):
         task_file_name = f"{task_file_name}.md"
 
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    root_dir = os.path.abspath(os.path.join(script_dir, "..", "..", "..", ".."))
+    root_dir = find_repo_root()
 
-    tasks_dir = os.path.join(root_dir, "docs", "tasks")
+    tasks_dir = os.path.join(str(root_dir), "docs", "tasks")
     completed_dir = os.path.join(tasks_dir, "completed")
     readme_path = os.path.join(tasks_dir, "README.md")
     task_path = os.path.join(tasks_dir, task_file_name)
