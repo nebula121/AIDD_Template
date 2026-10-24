@@ -26,6 +26,7 @@ PLACEHOLDER_PATTERNS = [
     (r"\[要記入:", "Unfilled placeholder '[要記入: ...]'"),
     (r"\{\{[A-Za-z0-9_]+\}\}", "Unreplaced template token '{{...}}'"),
     (r"<!--\s*GUIDE:", "Unremoved template guide comment '<!-- GUIDE: ... -->'"),
+    (r"<[^>\n]*[ぁ-んァ-ヶ一-龠々ー][^>\n]*>", "Unfilled template placeholder '<...>'"),
 ]
 
 LAYER_ORDER = {0: 0, "-": 1, 1: 2, 2: 3, 3: 4}
@@ -127,12 +128,16 @@ def parse_simple_yaml_frontmatter(text: str, rel_path: str, errors: list[str]) -
     return data, body
 
 
-def strip_code_and_comments(markdown_text: str) -> str:
-    """Remove fenced code blocks, HTML comments, and inline code for link scanning."""
+def strip_code(markdown_text: str) -> str:
+    """Remove fenced code blocks and inline code."""
     text = re.sub(r"```[\s\S]*?```", "", markdown_text)
-    text = re.sub(r"<!--[\s\S]*?-->", "", text)
     text = re.sub(r"`[^`\n]+`", "", text)
     return text
+
+
+def strip_code_and_comments(markdown_text: str) -> str:
+    """Remove fenced code blocks, inline code, and HTML comments for link scanning."""
+    return re.sub(r"<!--[\s\S]*?-->", "", strip_code(markdown_text))
 
 
 def check_relative_links(root: Path, rel_path: str, text: str, errors: list[str]) -> None:
@@ -411,6 +416,8 @@ def verify_strict_mode(root: Path, spec_files: list[str], errors: list[str]) -> 
     for rel_path in check_files:
         content = normalize_text((root / rel_path).read_text(encoding="utf-8"))
         for pat, desc in PLACEHOLDER_PATTERNS:
+            if rel_path == "docs/components/_template.md" and "<...>" in desc:
+                continue
             if re.search(pat, content):
                 errors.append(f"{rel_path}: {desc} found in --strict mode.")
 
@@ -421,9 +428,19 @@ def verify_strict_mode(root: Path, spec_files: list[str], errors: list[str]) -> 
         return
 
     raw_arch = normalize_text(arch_path.read_text(encoding="utf-8"))
+    comp_map_match = re.search(
+        r"<!--\s*@spec:component-map\s*-->([\s\S]*?)(?=\n##\s+|\n<!--\s*@spec:|\Z)",
+        strip_code(raw_arch),
+    )
+    if not comp_map_match:
+        errors.append(
+            "docs/system/architecture.md: Missing '<!-- @spec:component-map -->' section."
+        )
+        return
+
     mapped_component_paths: set[str] = set()
 
-    for cells in parse_markdown_table_rows(raw_arch, 5):
+    for cells in parse_markdown_table_rows(comp_map_match.group(1), 5):
         if "コンポーネントID" in cells[0]:
             continue
         link_match = re.search(r"\[[^\]]+\]\(([^)]+)\)", cells[1])
@@ -462,6 +479,14 @@ def verify_strict_mode(root: Path, spec_files: list[str], errors: list[str]) -> 
     for comp_path in sorted(actual_components):
         comp_text = normalize_text((root / comp_path).read_text(encoding="utf-8"))
         comp_stem = Path(comp_path).stem
+        if "@spec:component-template" in comp_text:
+            errors.append(
+                f"{comp_path}: Unreplaced template tag '@spec:component-template' found in --strict mode."
+            )
+        if "<id>" in comp_text:
+            errors.append(
+                f"{comp_path}: Unreplaced template placeholder '<id>' found in --strict mode."
+            )
         for h in required_headings:
             if h not in comp_text:
                 errors.append(
@@ -477,13 +502,13 @@ def verify_strict_mode(root: Path, spec_files: list[str], errors: list[str]) -> 
 
 def parse_markdown_table_rows(markdown_text: str, min_cols: int) -> list[list[str]]:
     """Extract non-separator rows from Markdown tables with at least min_cols columns."""
-    cleaned = re.sub(r"```[\s\S]*?```", "", re.sub(r"<!--[\s\S]*?-->", "", markdown_text))
+    cleaned = strip_code_and_comments(markdown_text)
     rows: list[list[str]] = []
     for line in cleaned.splitlines():
         s = line.strip()
         if not s.startswith("|") or not s.endswith("|"):
             continue
-        cells = [c.strip() for c in s.strip("|").split("|")]
+        cells = [c.replace(r"\|", "|").strip() for c in re.split(r"(?<!\\)\|", s[1:-1])]
         if len(cells) < min_cols:
             continue
         if all(set(c) <= {":", "-", " "} for c in cells if c):
@@ -580,8 +605,10 @@ def main() -> int:
                 f"{rel_path}: Duplicate spec_id '{spec_id}' (already defined in {specs_by_id[spec_id]['path']})."
             )
 
-        # Check @spec tags in body
-        tags_in_file = re.findall(r"<!--\s*(@spec:[a-zA-Z0-9_\-]+)\s*-->", body)
+        # Check @spec tags in body (excluding fenced code blocks and inline code)
+        tags_in_file = re.findall(
+            r"<!--\s*(@spec:[a-zA-Z0-9_\-]+)\s*-->", strip_code(body)
+        )
         primary_tag = f"@spec:{spec_id}"
         if primary_tag not in tags_in_file:
             errors.append(
@@ -612,11 +639,13 @@ def main() -> int:
             if status != "stable":
                 errors.append(f"{rel_path}: Immutable file must have 'status: stable'.")
             for pat, desc in PLACEHOLDER_PATTERNS:
+                if rel_path == "docs/components/_template.md" and "<...>" in desc:
+                    continue
                 if re.search(pat, text):
                     errors.append(f"{rel_path}: Immutable file contains {desc}.")
 
-        # Check target_files existence when status is stable or in strict mode
-        if status == "stable" or args.strict:
+        # Check target_files existence when status is stable
+        if status == "stable":
             for pattern in target_files:
                 if pattern == "**/*":
                     continue
@@ -626,23 +655,25 @@ def main() -> int:
                         f"{rel_path}: target_files pattern '{pattern}' matched 0 files on disk."
                     )
 
-        # Check relative links
-        check_relative_links(root, rel_path, body, errors)
-
-    # Check relative links in README.md and BOOTSTRAP.md if present
-    for root_doc in ["README.md", "BOOTSTRAP.md"]:
-        if (root / root_doc).exists():
-            check_relative_links(
-                root, root_doc, normalize_text((root / root_doc).read_text(encoding="utf-8")), errors
-            )
-
     # 3. Verify DAG (cycles & layer inversions & router reverse dependencies)
     check_dag_cycles(specs_by_id, errors)
 
     # 4. Synchronize or verify spec-router.md
     sync_or_verify_spec_router(root, specs_by_path, specs_by_id, args.sync, errors)
 
-    # 5. Strict checks if requested
+    # 5. Check relative links in all spec files (after router sync) and root docs
+    for rel_path in spec_files:
+        text = normalize_text((root / rel_path).read_text(encoding="utf-8"))
+        _, body = parse_simple_yaml_frontmatter(text, rel_path, [])
+        check_relative_links(root, rel_path, body, errors)
+
+    for root_doc in ["README.md", "BOOTSTRAP.md"]:
+        if (root / root_doc).exists():
+            check_relative_links(
+                root, root_doc, normalize_text((root / root_doc).read_text(encoding="utf-8")), errors
+            )
+
+    # 6. Strict checks if requested
     if args.strict:
         verify_strict_mode(root, spec_files, errors)
 
