@@ -84,10 +84,10 @@ def main():
     # Verify PR merge status
     pr_query = str(args.pull_request_number) if args.pull_request_number > 0 else target_branch
     print(f"Verifying PR merge status for TargetBranch '{target_branch}' (query: {pr_query})...")
-    res_pr = run_command(["gh", "pr", "view", pr_query, "--json", "number,headRefName,state,merged"])
+    res_pr = run_command(["gh", "pr", "view", pr_query, "--json", "number,headRefName,state,mergedAt"])
     if res_pr.returncode != 0 and args.issue_number > 0 and args.pull_request_number == 0:
         # Fallback to issue-number if query by branch name failed
-        res_pr = run_command(["gh", "pr", "view", str(args.issue_number), "--json", "number,headRefName,state,merged"])
+        res_pr = run_command(["gh", "pr", "view", str(args.issue_number), "--json", "number,headRefName,state,mergedAt"])
 
     is_merged = False
     if res_pr.returncode == 0 and res_pr.stdout:
@@ -99,13 +99,13 @@ def main():
                 print(f"Error: Safety Check Failed: Specified TargetBranch '{target_branch}' does not match PR #{pr_num} head branch '{head_ref}'.", file=sys.stderr)
                 sys.exit(1)
 
-            merged = pr_data.get("merged")
+            merged_at = pr_data.get("mergedAt")
             state = pr_data.get("state")
-            if merged is True or state == "MERGED":
+            if state == "MERGED" or bool(merged_at):
                 is_merged = True
-                print(f"Verified PR #{pr_num} for '{target_branch}' is merged (merged={merged}, state={state}).")
+                print(f"Verified PR #{pr_num} for '{target_branch}' is merged (mergedAt={merged_at}, state={state}).")
             else:
-                print(f"Error: TargetBranch '{target_branch}' (PR #{pr_num}) is not merged (merged={merged}, state={state}). Cleanup aborted to prevent data loss.", file=sys.stderr)
+                print(f"Error: TargetBranch '{target_branch}' (PR #{pr_num}) is not merged (mergedAt={merged_at}, state={state}). Cleanup aborted to prevent data loss.", file=sys.stderr)
                 sys.exit(1)
         except json.JSONDecodeError:
             print(f"Warning: Could not parse PR details JSON for query '{pr_query}'.")
