@@ -2,8 +2,6 @@
 """Deterministic static verifier and synchronizer for AIDD/SDD specifications."""
 
 import argparse
-import glob
-import os
 import re
 import sys
 from pathlib import Path
@@ -243,7 +241,9 @@ def generate_mermaid_dag(specs_by_id: dict[str, dict]) -> str:
 
     for layer_num, sg_id, sg_title in layers_def:
         layer_specs = [
-            meta for meta in specs_by_id.values() if meta.get("layer") == layer_num
+            meta
+            for meta in specs_by_id.values()
+            if meta.get("layer") == layer_num and meta.get("spec_id") != "component-template"
         ]
         if not layer_specs:
             continue
@@ -251,19 +251,26 @@ def generate_mermaid_dag(specs_by_id: dict[str, dict]) -> str:
         lines.append(f'    subgraph {sg_id}["{sg_title}"]')
         for meta in layer_specs:
             sid = meta["spec_id"]
-            disp_path = meta["path"]
-            if disp_path.startswith("docs/"):
-                disp_path = disp_path[5:]
+            spec_path = Path(meta["path"])
+            disp_path = (
+                spec_path.relative_to("docs").as_posix()
+                if meta["path"].startswith("docs/")
+                else spec_path.as_posix()
+            )
             lines.append(f'        {sid}["{disp_path}"]')
         lines.append("    end")
 
     # Dependency edges
     edges: list[tuple[str, str]] = []
     for spec_id, meta in specs_by_id.items():
-        if meta.get("layer") == "-":
+        if meta.get("layer") == "-" or spec_id == "component-template":
             continue
         for dep_id in meta.get("dependencies", []):
-            if dep_id in specs_by_id and specs_by_id[dep_id].get("layer") != "-":
+            if (
+                dep_id in specs_by_id
+                and specs_by_id[dep_id].get("layer") != "-"
+                and dep_id != "component-template"
+            ):
                 edges.append((spec_id, dep_id))
 
     edges.sort()
@@ -291,15 +298,17 @@ def generate_routing_table(root: Path, specs_by_path: dict[str, dict]) -> str:
     for meta in sorted_specs:
         layer_str = f"**{meta['layer']}**"
 
-        # Compute relative link from docs/ to file
+        # Compute relative link from docs/ to file using Path and as_posix()
         target_path = root / meta["path"]
-        try:
-            rel_link = os.path.relpath(target_path, router_dir).replace("\\", "/")
-        except ValueError:
-            rel_link = meta["path"]
-        name = target_path.name if meta["path"] != "AGENTS.md" else "AGENTS.md"
-        if meta["path"].startswith("docs/system/") or meta["path"].startswith("docs/components/"):
-            name = meta["path"][5:]
+        if target_path.is_relative_to(router_dir):
+            rel_link = target_path.relative_to(router_dir).as_posix()
+        else:
+            rel_link = (Path("..") / target_path.relative_to(root)).as_posix()
+        name = (
+            rel_link
+            if meta["path"].startswith(("docs/system/", "docs/components/"))
+            else target_path.name
+        )
         spec_link = f"[{name}]({rel_link})"
 
         title_str = meta.get("title", "").strip()
@@ -395,8 +404,10 @@ def sync_or_verify_spec_router(
             )
 
 
-def verify_strict_mode(root: Path, spec_files: list[str], errors: list[str]) -> None:
-    """Perform strict post-bootstrap checks: no BOOTSTRAP.md, no placeholders, 1:1 component map."""
+def check_strict_leftovers_and_placeholders(
+    root: Path, spec_files: list[str], errors: list[str]
+) -> None:
+    """Check that BOOTSTRAP.md, staged ref/ templates, and unfilled placeholders do not remain."""
     if (root / "BOOTSTRAP.md").exists():
         errors.append(
             "BOOTSTRAP.md: File still exists in root. Delete BOOTSTRAP.md upon completing bootstrap."
@@ -421,7 +432,11 @@ def verify_strict_mode(root: Path, spec_files: list[str], errors: list[str]) -> 
             if re.search(pat, content):
                 errors.append(f"{rel_path}: {desc} found in --strict mode.")
 
-    # Verify 1:1 mapping between docs/system/architecture.md table and docs/components/*.md
+
+def check_component_mapping_and_structure(
+    root: Path, spec_files: list[str], errors: list[str]
+) -> None:
+    """Verify 1:1 mapping between docs/system/architecture.md table and docs/components/*.md."""
     arch_path = root / "docs" / "system" / "architecture.md"
     if not arch_path.exists():
         errors.append("docs/system/architecture.md: Missing architecture spec.")
@@ -441,7 +456,7 @@ def verify_strict_mode(root: Path, spec_files: list[str], errors: list[str]) -> 
     mapped_component_paths: set[str] = set()
 
     for cells in parse_markdown_table_rows(comp_map_match.group(1), 5):
-        if "コンポーネントID" in cells[0]:
+        if "コンポーネントID" in cells[0] or any("[要記入:" in c for c in cells):
             continue
         link_match = re.search(r"\[[^\]]+\]\(([^)]+)\)", cells[1])
         if not link_match:
@@ -500,9 +515,20 @@ def verify_strict_mode(root: Path, spec_files: list[str], errors: list[str]) -> 
                 )
 
 
+def verify_strict_mode(root: Path, spec_files: list[str], errors: list[str]) -> None:
+    """Perform strict post-bootstrap checks: no BOOTSTRAP.md, no placeholders, 1:1 component map."""
+    check_strict_leftovers_and_placeholders(root, spec_files, errors)
+    check_component_mapping_and_structure(root, spec_files, errors)
+
+
 def parse_markdown_table_rows(markdown_text: str, min_cols: int) -> list[list[str]]:
     """Extract non-separator rows from Markdown tables with at least min_cols columns."""
-    cleaned = strip_code_and_comments(markdown_text)
+    no_fenced = re.sub(r"```[\s\S]*?```", "", markdown_text)
+    cleaned = re.sub(
+        r"(`[^`\n]+`)|<!--[\s\S]*?-->",
+        lambda m: m.group(1).replace("|", r"\|") if m.group(1) else "",
+        no_fenced,
+    )
     rows: list[list[str]] = []
     for line in cleaned.splitlines():
         s = line.strip()
@@ -515,6 +541,128 @@ def parse_markdown_table_rows(markdown_text: str, min_cols: int) -> list[list[st
             continue
         rows.append(cells)
     return rows
+
+
+def validate_single_spec(
+    root: Path,
+    rel_path: str,
+    specs_by_id: dict[str, dict],
+    all_spec_tags: dict[str, str],
+    errors: list[str],
+) -> dict | None:
+    """Parse and validate frontmatter, H1, @spec tags, immutable rules, and target_files for one spec."""
+    full_path = root / rel_path
+    text = normalize_text(full_path.read_text(encoding="utf-8"))
+    fm, body = parse_simple_yaml_frontmatter(text, rel_path, errors)
+    if not fm:
+        return None
+
+    missing_keys = REQUIRED_FRONTMATTER_KEYS - set(fm.keys())
+    if missing_keys:
+        errors.append(
+            f"{rel_path}: Missing frontmatter keys: {', '.join(sorted(missing_keys))}."
+        )
+        return None
+
+    extra_keys = set(fm.keys()) - REQUIRED_FRONTMATTER_KEYS
+    if extra_keys:
+        errors.append(
+            f"{rel_path}: Unexpected/deprecated frontmatter keys: {', '.join(sorted(extra_keys))} "
+            f"(only {', '.join(sorted(REQUIRED_FRONTMATTER_KEYS))} are allowed; layer is auto-derived from path)."
+        )
+
+    layer = infer_layer_from_path(rel_path)
+    if layer is None:
+        errors.append(
+            f"{rel_path}: Spec file is located in an unrecognized directory for layer derivation."
+        )
+        return None
+
+    spec_id = str(fm["spec_id"])
+    title = str(fm["title"]).strip()
+    status = str(fm["status"])
+    target_files = fm["target_files"]
+    dependencies = fm["dependencies"]
+
+    h1_match = re.search(r"^#\s+(.+)$", body, re.MULTILINE)
+    if not h1_match:
+        errors.append(f"{rel_path}: Missing level-1 heading ('# <Title>') in document body.")
+    else:
+        h1_title = h1_match.group(1).strip()
+        if h1_title != title:
+            errors.append(
+                f"{rel_path}: H1 heading '{h1_title}' does not match Frontmatter title '{title}'."
+            )
+
+    if status not in {"draft", "stable"}:
+        errors.append(f"{rel_path}: Invalid status '{status}' (must be 'draft' or 'stable').")
+    if not isinstance(target_files, list) or not isinstance(dependencies, list):
+        errors.append(f"{rel_path}: 'target_files' and 'dependencies' must be lists.")
+        return None
+
+    if spec_id in specs_by_id:
+        errors.append(
+            f"{rel_path}: Duplicate spec_id '{spec_id}' (already defined in {specs_by_id[spec_id]['path']})."
+        )
+
+    tags_in_file = re.findall(
+        r"<!--\s*(@spec:[a-zA-Z0-9_\-]+)\s*-->", strip_code(body)
+    )
+    primary_tag = f"@spec:{spec_id}"
+    if primary_tag not in tags_in_file:
+        errors.append(
+            f"{rel_path}: Missing primary tag '<!-- {primary_tag} -->' in document body."
+        )
+    for tag in tags_in_file:
+        if tag in all_spec_tags:
+            errors.append(
+                f"{rel_path}: Duplicate tag '{tag}' (already defined in {all_spec_tags[tag]})."
+            )
+        all_spec_tags[tag] = rel_path
+
+    if rel_path in IMMUTABLE_FILES:
+        if status != "stable":
+            errors.append(f"{rel_path}: Immutable file must have 'status: stable'.")
+        for pat, desc in PLACEHOLDER_PATTERNS:
+            if rel_path == "docs/components/_template.md" and "<...>" in desc:
+                continue
+            if re.search(pat, text):
+                errors.append(f"{rel_path}: Immutable file contains {desc}.")
+
+    if status == "stable":
+        for pattern in target_files:
+            if pattern == "**/*":
+                continue
+            matches = list(root.glob(pattern))
+            if not matches:
+                errors.append(
+                    f"{rel_path}: target_files pattern '{pattern}' matched 0 files on disk."
+                )
+
+    return {
+        "path": rel_path,
+        "spec_id": spec_id,
+        "title": title,
+        "layer": layer,
+        "status": status,
+        "target_files": target_files,
+        "dependencies": dependencies,
+        "subtags": [t for t in tags_in_file if t != primary_tag],
+    }
+
+
+def check_all_relative_links(root: Path, spec_files: list[str], errors: list[str]) -> None:
+    """Check relative markdown links across all spec files and root documentation."""
+    for rel_path in spec_files:
+        text = normalize_text((root / rel_path).read_text(encoding="utf-8"))
+        _, body = parse_simple_yaml_frontmatter(text, rel_path, [])
+        check_relative_links(root, rel_path, body, errors)
+
+    for root_doc in ["README.md", "BOOTSTRAP.md"]:
+        if (root / root_doc).exists():
+            check_relative_links(
+                root, root_doc, normalize_text((root / root_doc).read_text(encoding="utf-8")), errors
+            )
 
 
 def main() -> int:
@@ -538,7 +686,6 @@ def main() -> int:
     root = find_repo_root()
     errors: list[str] = []
 
-    # 1. Check immutable files exist
     for imm in IMMUTABLE_FILES:
         if not (root / imm).exists():
             errors.append(f"{imm}: Required immutable file is missing.")
@@ -548,132 +695,16 @@ def main() -> int:
     specs_by_id: dict[str, dict] = {}
     all_spec_tags: dict[str, str] = {}
 
-    # 2. Parse and validate each spec file
     for rel_path in spec_files:
-        full_path = root / rel_path
-        text = normalize_text(full_path.read_text(encoding="utf-8"))
-        fm, body = parse_simple_yaml_frontmatter(text, rel_path, errors)
-        if not fm:
-            continue
+        meta = validate_single_spec(root, rel_path, specs_by_id, all_spec_tags, errors)
+        if meta is not None:
+            specs_by_path[rel_path] = meta
+            specs_by_id[meta["spec_id"]] = meta
 
-        missing_keys = REQUIRED_FRONTMATTER_KEYS - set(fm.keys())
-        if missing_keys:
-            errors.append(
-                f"{rel_path}: Missing frontmatter keys: {', '.join(sorted(missing_keys))}."
-            )
-            continue
-
-        extra_keys = set(fm.keys()) - REQUIRED_FRONTMATTER_KEYS
-        if extra_keys:
-            errors.append(
-                f"{rel_path}: Unexpected/deprecated frontmatter keys: {', '.join(sorted(extra_keys))} "
-                f"(only {', '.join(sorted(REQUIRED_FRONTMATTER_KEYS))} are allowed; layer is auto-derived from path)."
-            )
-
-        layer = infer_layer_from_path(rel_path)
-        if layer is None:
-            errors.append(
-                f"{rel_path}: Spec file is located in an unrecognized directory for layer derivation."
-            )
-            continue
-
-        spec_id = str(fm["spec_id"])
-        title = str(fm["title"]).strip()
-        status = str(fm["status"])
-        target_files = fm["target_files"]
-        dependencies = fm["dependencies"]
-
-        # Verify H1 heading matches Frontmatter title
-        h1_match = re.search(r"^#\s+(.+)$", body, re.MULTILINE)
-        if not h1_match:
-            errors.append(f"{rel_path}: Missing level-1 heading ('# <Title>') in document body.")
-        else:
-            h1_title = h1_match.group(1).strip()
-            if h1_title != title:
-                errors.append(
-                    f"{rel_path}: H1 heading '{h1_title}' does not match Frontmatter title '{title}'."
-                )
-
-        if status not in {"draft", "stable"}:
-            errors.append(f"{rel_path}: Invalid status '{status}' (must be 'draft' or 'stable').")
-        if not isinstance(target_files, list) or not isinstance(dependencies, list):
-            errors.append(f"{rel_path}: 'target_files' and 'dependencies' must be lists.")
-            continue
-
-        if spec_id in specs_by_id:
-            errors.append(
-                f"{rel_path}: Duplicate spec_id '{spec_id}' (already defined in {specs_by_id[spec_id]['path']})."
-            )
-
-        # Check @spec tags in body (excluding fenced code blocks and inline code)
-        tags_in_file = re.findall(
-            r"<!--\s*(@spec:[a-zA-Z0-9_\-]+)\s*-->", strip_code(body)
-        )
-        primary_tag = f"@spec:{spec_id}"
-        if primary_tag not in tags_in_file:
-            errors.append(
-                f"{rel_path}: Missing primary tag '<!-- {primary_tag} -->' in document body."
-            )
-        for tag in tags_in_file:
-            if tag in all_spec_tags:
-                errors.append(
-                    f"{rel_path}: Duplicate tag '{tag}' (already defined in {all_spec_tags[tag]})."
-                )
-            all_spec_tags[tag] = rel_path
-
-        meta = {
-            "path": rel_path,
-            "spec_id": spec_id,
-            "title": title,
-            "layer": layer,
-            "status": status,
-            "target_files": target_files,
-            "dependencies": dependencies,
-            "subtags": [t for t in tags_in_file if t != primary_tag],
-        }
-        specs_by_path[rel_path] = meta
-        specs_by_id[spec_id] = meta
-
-        # Check immutable files integrity
-        if rel_path in IMMUTABLE_FILES:
-            if status != "stable":
-                errors.append(f"{rel_path}: Immutable file must have 'status: stable'.")
-            for pat, desc in PLACEHOLDER_PATTERNS:
-                if rel_path == "docs/components/_template.md" and "<...>" in desc:
-                    continue
-                if re.search(pat, text):
-                    errors.append(f"{rel_path}: Immutable file contains {desc}.")
-
-        # Check target_files existence when status is stable
-        if status == "stable":
-            for pattern in target_files:
-                if pattern == "**/*":
-                    continue
-                matches = glob.glob(str(root / pattern), recursive=True)
-                if not matches:
-                    errors.append(
-                        f"{rel_path}: target_files pattern '{pattern}' matched 0 files on disk."
-                    )
-
-    # 3. Verify DAG (cycles & layer inversions & router reverse dependencies)
     check_dag_cycles(specs_by_id, errors)
-
-    # 4. Synchronize or verify spec-router.md
     sync_or_verify_spec_router(root, specs_by_path, specs_by_id, args.sync, errors)
+    check_all_relative_links(root, spec_files, errors)
 
-    # 5. Check relative links in all spec files (after router sync) and root docs
-    for rel_path in spec_files:
-        text = normalize_text((root / rel_path).read_text(encoding="utf-8"))
-        _, body = parse_simple_yaml_frontmatter(text, rel_path, [])
-        check_relative_links(root, rel_path, body, errors)
-
-    for root_doc in ["README.md", "BOOTSTRAP.md"]:
-        if (root / root_doc).exists():
-            check_relative_links(
-                root, root_doc, normalize_text((root / root_doc).read_text(encoding="utf-8")), errors
-            )
-
-    # 6. Strict checks if requested
     if args.strict:
         verify_strict_mode(root, spec_files, errors)
 
