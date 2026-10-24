@@ -3,6 +3,20 @@ import sys
 import os
 import argparse
 import subprocess
+from pathlib import Path
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8")
+
+def find_repo_root() -> Path:
+    """Find repository root by looking for .git or AGENTS.md in parents."""
+    current = Path(__file__).resolve()
+    for parent in current.parents:
+        if (parent / ".git").exists() or (parent / "AGENTS.md").exists():
+            return parent
+    return Path.cwd()
 
 def run_command(cmd, check=False, cwd=None, capture_output=True, text=True):
     return subprocess.run(cmd, check=check, cwd=cwd, capture_output=capture_output, text=text, encoding='utf-8', errors='replace')
@@ -13,8 +27,7 @@ def main():
 
     args = parser.parse_args()
 
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    root_dir = os.path.abspath(os.path.join(script_dir, "..", "..", "..", ".."))
+    root_dir = find_repo_root()
     os.chdir(root_dir)
 
     base_branch = args.base_branch
@@ -29,7 +42,11 @@ def main():
     res_uncommitted_stat = run_command(["git", "diff", "HEAD", "--stat"])
     uncommitted_stat = res_uncommitted_stat.stdout.strip() if res_uncommitted_stat.stdout else ""
 
-    # 2. Branch commits relative to base_branch
+    # 2. Untracked files summary (BUG-05)
+    res_untracked = run_command(["git", "ls-files", "--others", "--exclude-standard"])
+    untracked_files = res_untracked.stdout.strip() if res_untracked.stdout else ""
+
+    # 3. Branch commits relative to base_branch
     branch_name_status = ""
     branch_stat = ""
     if current_branch and current_branch != base_branch:
@@ -38,11 +55,11 @@ def main():
         res_b_stat = run_command(["git", "diff", f"{base_branch}...HEAD", "--stat"])
         branch_stat = res_b_stat.stdout.strip() if res_b_stat.stdout else ""
 
-    if not uncommitted_name_status and not branch_name_status:
+    if not uncommitted_name_status and not branch_name_status and not untracked_files:
         print("No changes found.")
         sys.exit(0)
 
-    output_file = os.path.join(root_dir, "diff_summary_for_agent.txt")
+    output_file = root_dir / "diff_summary_for_agent.txt"
 
     lines = [
         "=== Local Walkthrough Diff Summary ===",
@@ -67,6 +84,13 @@ def main():
             "",
             "--- Uncommitted Changes (Diff Stat) ---",
             uncommitted_stat,
+            ""
+        ])
+
+    if untracked_files:
+        lines.extend([
+            "--- Untracked Files ---",
+            untracked_files,
             ""
         ])
 

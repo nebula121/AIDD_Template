@@ -4,6 +4,20 @@ import os
 import datetime
 import argparse
 import subprocess
+from pathlib import Path
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8")
+
+def find_repo_root() -> Path:
+    """Find repository root by looking for .git or AGENTS.md in parents."""
+    current = Path(__file__).resolve()
+    for parent in current.parents:
+        if (parent / ".git").exists() or (parent / "AGENTS.md").exists():
+            return parent
+    return Path.cwd()
 
 def run_command(cmd, check=True, cwd=None, capture_output=True, text=True):
     return subprocess.run(cmd, check=check, cwd=cwd, capture_output=capture_output, text=text, encoding='utf-8', errors='replace')
@@ -19,9 +33,8 @@ def main():
 
     args = parser.parse_args()
 
-    # Determine project root directory (.agents/skills/local-workflow/scripts -> 4 levels up)
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    root_dir = os.path.abspath(os.path.join(script_dir, "..", "..", "..", ".."))
+    root_dir = find_repo_root()
     os.chdir(root_dir)
 
     base_branch = args.base_branch
@@ -66,7 +79,7 @@ def main():
             print(f"Notice: Failed to pull origin {base_branch}. Continuing with local {base_branch}...", file=sys.stderr)
 
     # 4. Initialize docs/tasks directory and README.md if not existing
-    tasks_dir = os.path.join(root_dir, "docs", "tasks")
+    tasks_dir = os.path.join(str(root_dir), "docs", "tasks")
     completed_dir = os.path.join(tasks_dir, "completed")
     os.makedirs(completed_dir, exist_ok=True)
 
@@ -90,31 +103,12 @@ def main():
 
     if not os.path.exists(task_file_path):
         harness_name = args.harness.strip() if args.harness and args.harness.strip() else "Antigravity"
-        if os.path.exists(template_path):
-            with open(template_path, "r", encoding="utf-8") as f:
-                template_content = f.read()
-        else:
-            template_content = (
-                "---\n"
-                "task_id: \"{{TASK_ID}}\"\n"
-                "title: \"{{TASK_TITLE}}\"\n"
-                "status: \"in-progress\"\n"
-                "created_at: \"{{CREATED_DATE}}\"\n"
-                "branch: \"{{BRANCH_NAME}}\"\n"
-                "labels:\n"
-                "  - \"ai-generated\"\n"
-                "---\n"
-                "# タスク仕様書: {{TASK_TITLE}}\n\n"
-                "- **ステータス**: 🟡 進行中\n"
-                "- **作成日**: {{CREATED_DATE}}\n"
-                "- **作業ブランチ**: {{BRANCH_NAME}}\n\n"
-                "## 1. Goal (目的・完了条件)\n\n"
-                "## 2. Context (背景・仕様参照)\n\n"
-                "## 3. Technical Details (技術要件・制約)\n\n"
-                "## 4. Verification (検証手順)\n\n"
-                "---\n"
-                "<sub>Generated with AI Agent ({{HARNESS_NAME}})</sub>\n"
-            )
+        if not os.path.exists(template_path):
+            print(f"Error: Task template file not found at: {template_path}", file=sys.stderr)
+            sys.exit(1)
+
+        with open(template_path, "r", encoding="utf-8") as f:
+            template_content = f.read()
 
         replacements = {
             "{{TASK_ID}}": task_name,
