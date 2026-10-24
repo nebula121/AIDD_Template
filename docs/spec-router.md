@@ -32,13 +32,6 @@ flowchart TD
         system-overview["system/overview.md"]
         tech-stack["system/tech-stack.md"]
     end
-    subgraph L3["Layer 3: Components"]
-        component-template["components/_template.md"]
-    end
-    component-template --> core-rules
-    component-template --> domain-rules
-    component-template --> system-architecture
-    component-template --> tech-stack
     core-rules --> agents-guideline
     domain-rules --> core-rules
     domain-rules --> system-overview
