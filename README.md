@@ -21,8 +21,9 @@ BOOTSTRAP.md の手順に従い、このプロジェクトに適合させた仕�
 | Layer | 配置 | ファイル | 区分 | 役割 |
 | :---: | :--- | :--- | :---: | :--- |
 | **0** | [AGENTS.md](AGENTS.md) | `AGENTS.md` | **不変** | AI行動規範・コンテキスト制御・安全境界 |
+| **-** | `docs/` | [spec-router.md](docs/spec-router.md) | **自動生成（手動編集禁止）** | 全仕様書のルーティング索引・Mermaid依存グラフ |
 | **1** | `docs/` | [core-rules.md](docs/core-rules.md), [components/_template.md](docs/components/_template.md) | **不変** | 共通エンジニアリング不可侵ルール・コンポーネント仕様スキーマ |
-| **1** | `docs/` | [spec-router.md](docs/spec-router.md), `system/*.md`, `components/<id>.md` | **可変** | プロジェクト固有のシステム仕様（4分割）および個別コンポーネント仕様（1対1対応） |
+| **1** | `docs/` | `system/*.md`, `components/<id>.md` | **可変** | プロジェクト固有のシステム仕様（4分割）および個別コンポーネント仕様（1対1対応） |
 | **2** | `.agents/skills/` | `workflow`, `local-workflow`, `ponytail`, `spec-verification`, `spec-to-readable-html` 他 | **不変** | 開発ワークフロー・静的検証・HTML変換等の実行スキル群 |
 
 ### 2.2 AI用SSOTと人間用Viewの分離

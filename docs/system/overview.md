@@ -3,7 +3,7 @@ spec_id: system-overview
 title: システム概要 ＆ スコープ
 status: draft
 target_files:
-  - README.md
+  - "**/*"
 dependencies:
   - core-rules
 ---
