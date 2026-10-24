@@ -84,7 +84,7 @@ PRが人間によって承認・マージされた後、以下の手順を順次
 3. **ブランチクリーンアップ (`cleanup_branch.py`)**:
    - 以下のスクリプトを実行して、ベースブランチへの切り替え、最新化、ローカルおよびリモートの作業ブランチ削除を一括で安全に実行する。
    ```bash
-   python .agents/skills/workflow/scripts/cleanup_branch.py -b feature/issue-XXX-description -i XXX --delete-remote
+   python .agents/skills/workflow/scripts/cleanup_branch.py -b feature/issue-XXX-description -p YYY --delete-remote
    ```
 4. **ローカル base-branch 最新化の事後検証**:
    - `git log -n 1 main` を確認し、ローカルがリモートの最新マージコミットに追従していることを確認して完了報告を行う。

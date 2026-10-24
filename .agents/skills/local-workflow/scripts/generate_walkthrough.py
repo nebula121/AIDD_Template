@@ -10,7 +10,6 @@ def run_command(cmd, check=False, cwd=None, capture_output=True, text=True):
 def main():
     parser = argparse.ArgumentParser(description="Generate Walkthrough diff summary for local agents.")
     parser.add_argument("--base-branch", default="main", help="Base branch to compare against (default: main)")
-    parser.add_argument("--max-lines", type=int, default=200, help="Max lines for diff")
 
     args = parser.parse_args()
 
@@ -26,15 +25,9 @@ def main():
     # 1. Uncommitted changes summary
     res_uncommitted_name = run_command(["git", "diff", "HEAD", "--name-status"])
     uncommitted_name_status = res_uncommitted_name.stdout.strip() if res_uncommitted_name.stdout else ""
-    if not uncommitted_name_status:
-        res_uncommitted_name = run_command(["git", "diff", "--cached", "HEAD", "--name-status"])
-        uncommitted_name_status = res_uncommitted_name.stdout.strip() if res_uncommitted_name.stdout else ""
 
     res_uncommitted_stat = run_command(["git", "diff", "HEAD", "--stat"])
     uncommitted_stat = res_uncommitted_stat.stdout.strip() if res_uncommitted_stat.stdout else ""
-    if not uncommitted_stat:
-        res_uncommitted_stat = run_command(["git", "diff", "--cached", "HEAD", "--stat"])
-        uncommitted_stat = res_uncommitted_stat.stdout.strip() if res_uncommitted_stat.stdout else ""
 
     # 2. Branch commits relative to base_branch
     branch_name_status = ""
