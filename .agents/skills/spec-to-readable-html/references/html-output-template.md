@@ -1,121 +1,391 @@
-# HTML Output Template Guide
+# HTML Output Template Reference Guide
 
-Reference: `references/template.html`
+This guide defines the HTML markup patterns, component snippets, and document layouts for generating human-readable HTML specifications using `references/template.html`.
 
-Use `template.html` as the structural and visual foundation for every generated HTML file. Copy its CSS verbatim and follow the section order below. Add or remove sections based on the source material, but keep the overall layout, class names, and styling consistent.
+---
 
-## Section Order
+## 1. Component Reference & Snippets
 
-1. **Header** — title, subtitle, metadata bar (doc type, version, date, audience, source)
-2. **TOC sidebar** — auto-generated from h2/h3 headings; sticky on desktop, inline on mobile
-3. **Executive Summary** — 2-3 paragraphs + summary cards grid
-4. **Key Concepts** — glossary grid of terms and definitions
-5. **Workflows** — Mermaid diagrams with captions + step lists
-6. **Functional Requirements** — tables grouped by feature, with priority/status badges
-7. **Non-Functional Requirements** — table by category (performance, security, reliability, ...)
-8. **System / API Overview** — architecture diagram, endpoint table, data model diagram
-9. **Risks & Open Questions** — risk cards with severity, open questions list, assumptions callout
-10. **Appendix** — source traceability table mapping output sections to original sections
-11. **Footer** — source attribution and generation date
-
-Omit sections that have no corresponding content in the source. Never generate empty sections.
-
-## Component Reference
-
-### Summary Cards `.card-grid > .card`
-
-Use for quantitative highlights in the executive summary. Each card has:
-- `.card-label` — category name (uppercase, muted)
-- `.card-value` — primary number or short value
-- `.card-detail` — one-line breakdown
-
-Accent variants: `.card--accent-blue`, `.card--accent-green`, `.card--accent-amber`, `.card--accent-red`.
-
-### Badges `.badge`
-
-Priority: `.badge-must`, `.badge-should`, `.badge-could`, `.badge-wont`
-Status: `.badge-confirmed`, `.badge-inferred`, `.badge-assumption`, `.badge-open`
-Risk: `.badge-risk-high`, `.badge-risk-medium`, `.badge-risk-low`
-
-Use badges inline in table cells and risk card headers.
-
-### Tables `.spec-table`
-
-Standard table for structured data. Keep columns narrow and scannable. Use `<code>` for identifiers, paths, field names. Place badges in dedicated Priority/Status columns.
-
-### Callouts `.callout`
-
-Variants: `.callout-info`, `.callout-warning`, `.callout-danger`, `.callout-success`
-
-Each callout contains a `.callout-title` and body content. Use sparingly for cross-cutting notes, caveats, and assumptions.
-
-### Diagrams `.diagram-container`
-
-Wrap Mermaid blocks in `<figure class="diagram-container"><div class="mermaid">...</div><figcaption>...</figcaption></figure>`.
-
-Supported Mermaid types: `graph`, `sequenceDiagram`, `stateDiagram-v2`, `erDiagram`, `gantt`, `pie`, `flowchart`.
-
-The base template loads Mermaid from a CDN. If the output must be fully self-contained or usable offline, replace Mermaid blocks with inline `<svg>` elements instead of including the CDN script.
-
-### Glossary `.glossary`
-
-Grid of `.glossary-item` cards, each with `.glossary-term` and `.glossary-def`. Use for key concepts, domain terms, abbreviations.
-
-### Risk Cards `.risk-card`
-
-Variants: `.risk-card--high`, `.risk-card--medium`, `.risk-card--low`. Each contains `.risk-header` (badge + title) and `.risk-body` (description + mitigation).
-
-### Open Questions `.question-list`
-
-Unordered list with `?` indicator. Use for ambiguities the spec does not resolve.
-
-### Directory Tree `.tree-view`
-
-Use for file and directory structure displays. The `white-space: pre` rule preserves newlines and indentation — **do not** wrap content in `<pre>` (the class alone handles formatting).
+### 1.1 Global Navigation (`.global-nav`)
+Used across all pages in Portal Mode. Categorizes links by architectural layer and highlights the current page with `.active`.
 
 ```html
-<div class="tree-view">
-<span class="dir">project/</span>
-├── <span class="dir">src/</span>
-│   ├── index.ts          <span class="comment">← entry point</span>
-│   └── <span class="dir">lib/</span>
-│       └── utils.ts
-└── package.json
+<nav class="global-nav">
+  <div class="global-nav-inner">
+    <a href="../index.html" class="global-nav-brand">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+      </svg>
+      <span>Specification Portal</span>
+    </a>
+    <div class="global-nav-groups">
+      <div class="global-nav-group">
+        <span class="global-nav-group-label">Core</span>
+        <a href="../core-rules.html" class="nav-link">Core Rules</a>
+      </div>
+      <div class="global-nav-group">
+        <span class="global-nav-group-label">System</span>
+        <a href="overview.html" class="nav-link active">Overview</a>
+        <a href="architecture.html" class="nav-link">Architecture</a>
+        <a href="domain-rules.html" class="nav-link">Domain Rules</a>
+        <a href="tech-stack.html" class="nav-link">Tech Stack</a>
+      </div>
+      <div class="global-nav-group">
+        <span class="global-nav-group-label">Components</span>
+        <a href="../components/component-a.html" class="nav-link">Component A</a>
+        <a href="../components/component-b.html" class="nav-link">Component B</a>
+      </div>
+    </div>
+  </div>
+</nav>
+```
+
+---
+
+### 1.2 Key Takeaways (`.key-takeaway`)
+3-bullet high-impact summary placed immediately after the header / TOC.
+
+```html
+<div class="key-takeaway">
+  <div class="key-takeaway-title">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"></circle>
+      <polyline points="12 6 12 12 14 14"></polyline>
+    </svg>
+    <span>Key Takeaways (要点まとめ)</span>
+  </div>
+  <ul>
+    <li><strong>責務と境界:</strong> コンポーネントXはデータ変換と検証に特化し、ストレージへの直接書き込みは行わない。</li>
+    <li><strong>必須契約 (MUST):</strong> すべての外部リクエストはスキーマ検証を通過しなければならない。</li>
+    <li><strong>成果・価値:</strong> 入力エラーの95%をインバウンド境界で遮断し、後続処理の耐障害性を向上させる。</li>
+  </ul>
 </div>
 ```
 
-- Wrap directory names in `<span class="dir">`
-- Wrap annotations in `<span class="comment">`
-- Place the opening tag and content flush-left (no leading whitespace before tree lines)
+---
 
-### Pyramid Chart `.pyramid`
-
-Stacked horizontal bars for proportional data (e.g., test pyramid, cost breakdown).
+### 1.3 Why & Before/After Comparison (`.comparison-grid`)
+Contrasts the system state without the specification against the state with it.
 
 ```html
-<div class="pyramid">
-  <div class="pyramid-level">
-    <div class="pyramid-bar" style="width:30%;background:#e03131;">E2E <span class="count">(5)</span></div>
-    <div class="pyramid-detail">Description of this level</div>
+<div class="comparison-grid">
+  <div class="comparison-card comparison-card--before">
+    <div class="comparison-header">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="15" y1="9" x2="9" y2="15"></line>
+        <line x1="9" y1="9" x2="15" y2="15"></line>
+      </svg>
+      <span>Before (仕様なき場合のリスク)</span>
+    </div>
+    <div class="comparison-title">暗黙的な前提と分散した境界</div>
+    <div class="comparison-body">
+      <ul>
+        <li>バリデーションルールが各エンドポイントに散在し、漏れや不整合が発生する。</li>
+        <li>エラー時のフォールバック動作が未定義で、障害時に連鎖的なダウンタイムを招く。</li>
+      </ul>
+    </div>
   </div>
-  <!-- wider bars toward the bottom -->
-  <div class="pyramid-level">
-    <div class="pyramid-bar" style="width:100%;background:#16a34a;">Unit <span class="count">(42)</span></div>
-    <div class="pyramid-detail">Description of this level</div>
+
+  <div class="comparison-card comparison-card--after">
+    <div class="comparison-header">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+      </svg>
+      <span>After (本仕様による保証と価値)</span>
+    </div>
+    <div class="comparison-title">境界での一元集中検証と明確な契約</div>
+    <div class="comparison-body">
+      <ul>
+        <li>Layer 1 境界で共通スキーマによる単一検証を実施し、不正データを即時拒絶する。</li>
+        <li>RFC 2119 契約により各モジュールの責務が明文化され、独立した自律開発が可能になる。</li>
+      </ul>
+    </div>
   </div>
 </div>
 ```
 
-- Set `width` (30%–100%) and `background` inline on `.pyramid-bar`
-- The bar occupies a 60% column; the detail always has a 40% column beside it
-- Widths are relative to the bar column, so proportions are preserved even at 100%
+---
 
-## Rules
+### 1.4 Concrete Scenario Trace (`.scenario-box`)
+Step-by-step trace using concrete example data to illustrate abstract specifications.
 
-- Copy the full `<style>` block from `template.html` into every generated file. Do not subset it.
-- Replace all `{{PLACEHOLDER}}` tokens with real content derived from the source, escaping source-derived text by default.
-- Use semantic HTML elements (`section`, `figure`, `figcaption`, `table`, `nav`, `code`).
-- Number figures sequentially: Fig 1, Fig 2, ... (or 図1, 図2, ... for `--lang=ja`).
-- Every diagram must have a `<figcaption>`.
-- The traceability table in the Appendix must map each output section to its source section and indicate whether content was Preserved, Summarized, or Inferred.
-- Mermaid CDN script goes at the bottom of `<body>` when Mermaid blocks are used. Note this external dependency in the footer or a comment. For fully self-contained/offline output, use inline SVG and omit the Mermaid CDN script.
+```html
+<div class="scenario-box">
+  <div class="scenario-header">
+    <div class="scenario-title">
+      <span>実行シナリオ: 外部リクエストの正規化と検証フロー</span>
+    </div>
+    <span class="badge badge-inferred">[Example] 推論具象データ</span>
+  </div>
+  <div class="scenario-steps">
+    <div class="scenario-step">
+      <div class="scenario-step-num">1</div>
+      <div class="scenario-step-content">
+        <strong>クライアントからのペイロード受信:</strong> 未加工の JSON リクエストを受理する。
+        <pre><code>{ "id": "req-1024", "action": "sync", "payload": { "val": 42 } }</code></pre>
+      </div>
+    </div>
+    <div class="scenario-step">
+      <div class="scenario-step-num">2</div>
+      <div class="scenario-step-content">
+        <strong>スキーマ検証とサニタイズ:</strong> 必須フィールドの存在と型適合性を検査する。
+      </div>
+    </div>
+    <div class="scenario-step">
+      <div class="scenario-step-num">3</div>
+      <div class="scenario-step-content">
+        <strong>ドメインエンティティへの変換と送出:</strong> 内部標準フォーマットへ変換し、処理パイプラインへ渡す。
+        <pre><code>{ "trace_id": "req-1024", "status": "VALIDATED", "timestamp": "2026-10-26T00:00:00Z" }</code></pre>
+      </div>
+    </div>
+  </div>
+</div>
+```
+
+---
+
+### 1.5 Reading Paths by Role (`.reading-paths-grid`)
+Used on the Portal page (`index.html`) to guide different team members to their most relevant specifications.
+
+```html
+<div class="reading-paths-grid">
+  <div class="reading-path-card">
+    <div class="reading-path-role">Developer / 実装者</div>
+    <div class="reading-path-title">新規機能実装・コンポーネント開発</div>
+    <div class="reading-path-desc">アーキテクチャの境界制約とコンポーネント契約を理解するための最短ルート。</div>
+    <ul class="reading-path-steps">
+      <li>1. <a href="system/tech-stack.html">Tech Stack</a></li>
+      <li>2. <a href="system/architecture.html">System Architecture</a></li>
+      <li>3. <a href="components/skill-definition.html">Skill Definition</a></li>
+    </ul>
+  </div>
+
+  <div class="reading-path-card">
+    <div class="reading-path-role">Reviewer / アーキテクト</div>
+    <div class="reading-path-title">整合性検証・設計レビュー</div>
+    <div class="reading-path-desc">ドメインルールと不可侵制約（Core Rules）の遵守状況を確認する監査ルート。</div>
+    <ul class="reading-path-steps">
+      <li>1. <a href="core-rules.html">Core Rules</a></li>
+      <li>2. <a href="system/domain-rules.html">Domain Rules</a></li>
+      <li>3. <a href="system/architecture.html">System Architecture</a></li>
+    </ul>
+  </div>
+</div>
+```
+
+---
+
+### 1.6 Responsive Table Container (`.table-responsive`)
+Wraps any structured specification table to ensure horizontal scrolling on narrow viewports.
+
+```html
+<div class="table-responsive">
+  <table class="spec-table">
+    <thead>
+      <tr>
+        <th>シンボル / メソッド</th>
+        <th>入力型</th>
+        <th>戻り値 / 状態</th>
+        <th>制約レベル</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>executePipeline(ctx)</code></td>
+        <td><code>PipelineContext</code></td>
+        <td><code>Result&lt;Summary, Error&gt;</code></td>
+        <td><span class="badge badge-must">MUST</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+```
+
+---
+
+### 1.7 Diagrams with Lightbox Modal (`.diagram-container`)
+Mandatory on every page. Supports pan, zoom, and fullscreen inspection.
+
+```html
+<figure class="diagram-container" tabindex="0">
+  <div class="mermaid">
+flowchart TD
+    Client["Client / Invoker"] --> Gateway["API Gateway / Boundary"]
+    Gateway --> Pipeline["Execution Pipeline"]
+    Pipeline --> Storage[("State / DB")]
+  </div>
+  <figcaption>図1: システムデータフローと実行境界</figcaption>
+</figure>
+```
+
+---
+
+### 1.8 Ancillary Components
+- **Badges**: `.badge-must`, `.badge-should`, `.badge-confirmed`, `.badge-inferred`, `.badge-open`, `.badge-risk-high`
+- **Callouts**: `.callout.callout-info`, `.callout.callout-warning`, `.callout.callout-danger`, `.callout.callout-success`
+- **Glossary**: `.glossary > .glossary-item > (.glossary-term, .glossary-def)`
+- **Risk Cards**: `.risk-card.risk-card--high > (.risk-header, .risk-body)`
+- **Directory Tree**: `.tree-view` (`white-space: pre`)
+
+---
+
+## 2. Portal Page (`docs/html/index.html`) Recommended Structure
+
+```html
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>仕様書ポータル — プロジェクト仕様書体系</title>
+  <!-- template.html CSS -->
+</head>
+<body>
+  <!-- 1. Global Navigation -->
+  <nav class="global-nav">...</nav>
+
+  <!-- 2. Hero Header -->
+  <header class="doc-header">
+    <h1>仕様書ポータル (Specification Portal)</h1>
+    <p class="subtitle">3層CQRSアーキテクチャに基づく仕様書ビジュアルネットワーク</p>
+    <div class="doc-meta">
+      <span class="doc-meta-item"><strong>Status:</strong> Stable</span>
+      <span class="doc-meta-item"><strong>Updated:</strong> 2026-10-26</span>
+    </div>
+  </header>
+
+  <div class="doc-layout" style="grid-template-columns: 1fr;">
+    <main class="doc-main" style="max-width: 100%;">
+      <!-- 3. Key Takeaways -->
+      <section>
+        <div class="key-takeaway">...</div>
+      </section>
+
+      <!-- 4. Architecture & Dependency Network (Mermaid) -->
+      <section>
+        <h2>1. 仕様書依存ネットワークマップ</h2>
+        <figure class="diagram-container">
+          <div class="mermaid">
+            <!-- Mermaid DAG from spec-router.md -->
+          </div>
+          <figcaption>仕様書間単方向依存グラフ (DAG)</figcaption>
+        </figure>
+      </section>
+
+      <!-- 5. Reading Paths by Role -->
+      <section>
+        <h2>2. ロール別推奨読書ルート</h2>
+        <div class="reading-paths-grid">...</div>
+      </section>
+
+      <!-- 6. Specification Catalog -->
+      <section>
+        <h2>3. 仕様書カタログ一覧</h2>
+        <div class="table-responsive">
+          <table class="spec-table">
+            <thead>
+              <tr>
+                <th>Layer</th>
+                <th>仕様書</th>
+                <th>タイトル</th>
+                <th>ステータス</th>
+                <th>対象ファイル</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Catalog rows with links -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+  <!-- template.html Footer & Modal Scripts -->
+</body>
+</html>
+```
+
+---
+
+## 3. Individual Specification Page Recommended Structure
+
+```html
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>{{TITLE}} — 仕様書</title>
+  <!-- template.html CSS -->
+</head>
+<body>
+  <!-- 1. Global Navigation -->
+  <nav class="global-nav">...</nav>
+
+  <!-- 2. Header -->
+  <header class="doc-header">
+    <h1>{{TITLE}}</h1>
+    <p class="subtitle">{{SUBTITLE}}</p>
+    <div class="doc-meta">
+      <span class="doc-meta-item"><strong>Layer:</strong> {{LAYER}}</span>
+      <span class="doc-meta-item"><strong>Status:</strong> {{STATUS}}</span>
+    </div>
+  </header>
+
+  <div class="doc-layout">
+    <!-- 3. TOC Sidebar -->
+    <aside class="toc">...</aside>
+
+    <!-- 4. Main Content -->
+    <main class="doc-main">
+      <!-- 4.1 Key Takeaways (Mandatory) -->
+      <div class="key-takeaway">...</div>
+
+      <!-- 4.2 Mandatory Diagram -->
+      <section id="architecture">
+        <h2>1. 構造・ワークフロー図解</h2>
+        <figure class="diagram-container">
+          <div class="mermaid">...</div>
+          <figcaption>図1: コンポーネント構造と処理パイプライン</figcaption>
+        </figure>
+      </section>
+
+      <!-- 4.3 Why & Before/After (Mandatory) -->
+      <section id="why-and-comparison">
+        <h2>2. 背景 ＆ 導入効果（Before / After）</h2>
+        <div class="comparison-grid">...</div>
+      </section>
+
+      <!-- 4.4 Public Interfaces & Contracts -->
+      <section id="interfaces">
+        <h2>3. 公開インターフェース ＆ 契約</h2>
+        <div class="table-responsive">
+          <table class="spec-table">...</table>
+        </div>
+      </section>
+
+      <!-- 4.5 Concrete Scenario Trace (Mandatory) -->
+      <section id="scenario">
+        <h2>4. 具象実行シナリオ</h2>
+        <div class="scenario-box">...</div>
+      </section>
+
+      <!-- 4.6 Acceptance Criteria & Verification -->
+      <section id="verification">
+        <h2>5. 受入条件 ＆ 検証基準</h2>
+        <div class="table-responsive">
+          <table class="spec-table">...</table>
+        </div>
+      </section>
+
+      <!-- 4.7 Source Traceability -->
+      <section id="traceability">
+        <h2>6. 元仕様トレーサビリティ</h2>
+        <p>Source Spec: <a href="../../docs/...">docs/...</a> (Tag: <code>@spec:...</code>)</p>
+      </section>
+    </main>
+  </div>
+  <!-- template.html Footer & Modal Scripts -->
+</body>
+</html>
+```

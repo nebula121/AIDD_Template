@@ -1,196 +1,144 @@
 ---
 name: spec-to-readable-html
-description: Transform Markdown or text specifications into human-readable HTML documents with summaries, reordered structure, visual explanations, diagrams, charts, and traceability to the source. Use when asked to convert a spec, requirements document, API spec, product spec, design doc, or technical document into readable HTML, especially when the user wants summarization, restructuring, diagrams, graphs, images, or visual aids rather than a literal Markdown-to-HTML conversion.
-argument-hint: "[lang]"
-arguments: lang
+description: Transform Markdown or text specifications into human-readable HTML documents with cognitive unpacking (key takeaways, before/after comparisons, concrete scenarios, mandatory diagrams) and portal navigation. Optimized for 3-layer CQRS specification frameworks.
+argument-hint: "[target] [lang]"
+arguments: target, lang
 ---
 
 # Spec to Readable HTML
 
-This skill turns specifications into polished, human-readable HTML reports. It is not a simple Markdown renderer. It should analyze the source, summarize where helpful, reorganize content for comprehension, and add visual aids when they clarify the document.
+This skill transforms formal, dense, and structured specifications (Markdown or plain text) into visually engaging, human-readable HTML documents optimized for quick comprehension, decision-making, and alignment.
 
-When invoked, `$lang` sets the output language (default: `ja`). If omitted, Japanese is used.
+It operates as the **Human Read-Only View** in a CQRS specification architecture (e.g., [nebula121/AIDD_Template](https://github.com/nebula121/AIDD_Template)). It does **not** perform literal Markdown-to-HTML conversion or lossy superficial summarization. Instead, it systematically applies **Cognitive Unpacking** to reveal the *intent*, *value*, and *concrete reality* behind abstract rules and schemas.
 
-## When to Use This Skill
+When invoked:
+- `$target` sets the target specification file, directory, or scope (default: auto-detected from environment).
+- `$lang` sets the output language (default: `ja`). If omitted, Japanese is used.
 
-Use this skill when the user asks to:
+---
 
-- Convert a specification, requirements document, design doc, API spec, PRD, RFC, or technical document into HTML
-- Make a Markdown spec easier for humans to read
-- Add summaries, diagrams, charts, screenshots, icons, or visual explanations to a document
-- Turn dense requirements into a readable web page or report
-- Produce executive summaries, implementation overviews, API maps, workflows, architecture diagrams, or decision summaries from a spec
+## Operating Modes
 
-Do **not** treat the task as a literal Markdown-to-HTML conversion unless the user explicitly asks for a faithful conversion.
+Before generating HTML, inspect the environment and arguments to choose the operating mode:
 
-## Core Principles
+### 1. Portal Mode (`docs/html/index.html` + Multi-Spec Hierarchy)
+- **Trigger**: When `docs/spec-router.md` exists in the repository, or when the user requests generating views for the full project / multiple specifications.
+- **Output Structure**:
+  - `docs/html/index.html` (Portal page: Hero, dependency DAG network diagram, role-based reading routes, specifications catalog table).
+  - `docs/html/<relative-path-to-spec>.html` (Individual specification pages mirroring the source hierarchy, e.g., `docs/html/system/overview.html`).
+- **Navigation Contract**:
+  - Every generated page (including `index.html`) MUST include the shared top navigation bar (`.global-nav`).
+  - `.global-nav` groups links hierarchically (e.g., `Home`, `Layer 1: Core`, `Layer 2: System`, `Layer 3: Components`) and marks the current page with `.active`.
 
-1. **Improve comprehension, not just formatting**
-   - Summarize long sections.
-   - Group related information.
-   - Surface key decisions, risks, dependencies, and open questions.
+### 2. Single Spec Mode (Single Portable HTML)
+- **Trigger**: When a specific single specification file is targeted and portal mode is not requested.
+- **Output Structure**:
+  - A single self-contained HTML file (e.g., `<spec-name>.html` or `docs/html/<spec-name>.html`).
+  - Contains `.global-nav` with home/relative navigation if part of a project, or standalone header if independent.
 
-2. **Preserve traceability**
-   - Do not silently change meaning.
-   - Mark inferred content as `Inferred` or `Assumption`.
-   - Prefer linking or referencing original section names where possible.
+---
 
-3. **Use visuals only when they help**
-   - Add diagrams for flows, relationships, architecture, state transitions, timelines, or data models.
-   - Add charts only when the source contains comparable quantities, priorities, timelines, statuses, or categories.
-   - Do not invent quantitative data.
+## Core Protocol: Cognitive Unpacking
 
-4. **Make the output portable**
-   - Prefer a single portable HTML file with embedded CSS.
-   - The base template uses the Mermaid CDN by default for Mermaid diagrams.
-   - Document the Mermaid CDN dependency in the footer or a comment when Mermaid is used.
-   - If the user asks for offline, no-network, or fully self-contained output, replace Mermaid diagrams with inline SVG instead of loading the CDN.
-   - Avoid additional external dependencies unless the user allows them.
+Structured tables and RFC 2119 keywords (`MUST`, `MUST NOT`, `SHOULD`) are efficient for verification tools and AI parsers, but impose high cognitive load on human readers. When encountering formal contracts, tables, and rules, **unpack** them into human-friendly cognitive representations:
 
-## Input Handling
+### 1. Key Takeaways (`.key-takeaway`) — Mandatory
+- Always place a 3-bullet summary box immediately after the header/TOC.
+- Summarize: (1) Core purpose/scope, (2) Most critical constraint or guarantee, (3) Key stakeholder outcome.
 
-Accept any of these inputs:
+### 2. Visual Completeness (Mandatory Diagram) — Mandatory
+- **Every specification page MUST contain at least one Mermaid diagram** (or inline SVG).
+- Choose the diagram type that clarifies the core cognitive bottleneck:
+  - System topology / Component relationships: `flowchart TD` or `graph TD`
+  - Lifecycle / State transitions: `stateDiagram-v2`
+  - Sequence / Protocol exchanges: `sequenceDiagram`
+  - Data models / Entities: `erDiagram`
+  - Multi-layer defense / Security boundaries: `flowchart LR` / `flowchart TD` with subgraphs
+- Wrap diagrams in `<figure class="diagram-container"><div class="mermaid">...</div><figcaption>Caption</figcaption></figure>`.
+- Use the base template's pan & zoom lightbox (click or `Enter`/`Space` to inspect complex diagrams).
 
-- Markdown file
-- Plain text specification
-- Multiple related spec files
-- API schema / OpenAPI fragments
-- README-style product or technical notes
-- Existing HTML that needs improvement
+### 3. Why & Before/After Comparison (`.comparison-grid`) — Mandatory
+- Contrast the state **without** this specification against the state **with** it:
+  - `.comparison-card--before`: Risks, ambiguities, vulnerabilities, or team friction absent this constraint.
+  - `.comparison-card--after`: Guarantees, consistency, developer autonomy, and stability achieved with this specification.
 
-Before producing HTML, identify:
+### 4. Concrete Scenario Trace (`.scenario-box`) — Mandatory
+- Anchor abstract types, APIs, or schemas with concrete, step-by-step example data.
+- Clearly annotate non-normative or deduced examples with the `[Inferred]` or `[Example]` status badge.
+- Number each step (`.scenario-step-num`) and show input/output payloads or execution effects.
 
-- Document type: PRD, API spec, technical spec, design doc, operations runbook, etc.
-- Target audience: business, engineering, QA, operations, mixed audience
-- Main entities: users, systems, APIs, screens, jobs, data models
-- Main processes: workflows, sequences, state transitions
-- Ambiguities, missing decisions, and risks
+### 5. Responsive Tables (`.table-responsive`) — Mandatory
+- Every structured table (`.spec-table` or standard `table`) MUST be wrapped in `<div class="table-responsive">...</div>` to enable clean horizontal scrolling on narrow viewports without breaking page layout.
 
-If the target audience or desired level of detail is unclear, make a reasonable default:
+---
 
-- Audience: mixed product + engineering
-- Detail: readable but implementation-aware
-- Output: single portable HTML document with embedded CSS; Mermaid diagrams may use the CDN unless offline/no-network output is requested
+## Individual Specification Layout Standard
 
-## Recommended Workflow
+Follow this cognitive sequence for individual specification HTML documents:
 
-1. **Read and map the source**
-   - Extract title, purpose, scope, background, requirements, flows, APIs, data, constraints, risks, and open questions.
+```
+1. Global Navigation (`.global-nav`)
+2. Document Header (`.doc-header`: Title, Subtitle, Meta badges)
+3. TOC Sidebar (`.toc`: Sticky on desktop, inline on mobile)
+4. Key Takeaways (`.key-takeaway`: 3-bullet core summary)
+5. Visual Architecture / Workflow (Mandatory Mermaid Diagram)
+6. Why & Before/After Comparison (`.comparison-grid`: Before vs. After)
+7. Public Interfaces & Contracts (`.table-responsive` > `.spec-table`)
+8. Concrete Scenario Trace (`.scenario-box`: Step-by-step example)
+9. Acceptance Criteria & Edge Cases (Tables with badges / Risk cards)
+10. Source Traceability & Appendix (Mapping back to original Markdown / RFC tags)
+11. Footer (`.doc-footer`: Generation metadata & copyright)
+```
 
-2. **Create a reader-friendly structure**
-   - Executive summary
-   - What this document covers
-   - Key concepts / glossary
-   - Main workflows or user journeys
-   - Functional requirements
-   - Non-functional requirements
-   - System / API / data overview
-   - Visual diagrams
-   - Risks, assumptions, open questions
-   - Appendix: source-aligned details
+---
 
-3. **Summarize selectively**
-   - Keep exact details for requirements, API contracts, constraints, and acceptance criteria.
-   - Summarize background, motivation, repeated explanations, and long prose.
-   - Use callouts for important notes.
+## Portal Page (`index.html`) Layout Standard
 
-4. **Choose visual aids**
-   - Use the visual decision guide below.
-   - Create diagrams as inline SVG, Mermaid source, or image files depending on the environment and user preference.
-   - Always add captions and alt text.
+When in Portal Mode, generate `docs/html/index.html` with this structure:
 
-5. **Generate polished HTML**
-   - Use semantic HTML: `section`, `article`, `nav`, `table`, `figure`, `figcaption`.
-   - Include a sticky or top table of contents for long docs.
-   - Use readable typography, spacing, and contrast.
-   - Include print-friendly CSS when useful.
+```
+1. Global Navigation (`.global-nav` with Home marked `.active`)
+2. Hero Section (System Title, Architecture Vision, Last Updated, Status)
+3. Architecture & Dependency Network (Interactive Mermaid DAG from spec-router.md)
+4. Reading Paths by Role (`.reading-paths-grid` > `.reading-path-card`: e.g., Onboarding, Core Dev, Reviewer, Ops)
+5. Specification Catalog (`.table-responsive` > `.spec-table` listing Layer, Title, Scope, Status, and Links)
+6. System-wide Invariants & Core Constraints Summary
+7. Footer
+```
 
-6. **Validate output**
-   - Check that source meaning is preserved.
-   - Ensure assumptions are labeled.
-   - Ensure visuals match the source.
-   - Ensure the HTML opens standalone unless dependencies were explicitly chosen.
+---
 
-## Visual Decision Guide
+## Badges & Status Annotations
 
-Choose visuals based on the content:
+Maintain strict semantic distinctions using badges:
 
-| Source content | Best visual |
-| --- | --- |
-| Step-by-step business or user process | Flowchart |
-| API calls between systems | Sequence diagram |
-| System components and dependencies | Architecture diagram |
-| Status lifecycle | State diagram |
-| Tables with entities and relationships | ER diagram / relationship map |
-| Milestones or phased rollout | Timeline |
-| Priority, status, category counts | Bar chart / stacked chart |
-| Decision alternatives | Comparison matrix |
-| Screen transitions | User journey / sitemap |
-| Long section structure | Summary cards |
+| Category | Class | Usage |
+| :--- | :--- | :--- |
+| **Requirement** | `.badge-must` / `.badge-should` / `.badge-could` / `.badge-wont` | RFC 2119 normative constraints |
+| **Epistemic Status** | `.badge-confirmed` | Verified directly from source specification |
+| | `.badge-inferred` / `.badge-assumption` | Deduced by AI / scenario examples (MUST NOT present as confirmed) |
+| | `.badge-open` | Unresolved questions, missing decisions |
+| **Risk / Severity** | `.badge-risk-high` / `.badge-risk-medium` / `.badge-risk-low` | Risk assessments and security impact |
 
-Preferred formats:
+---
 
-1. **Inline SVG** for standalone visual diagrams and charts, especially when fully self-contained or offline output is required.
-2. **Mermaid** for architecture, flowchart, sequence, state, and ER diagrams when source code readability matters. In the base template, Mermaid uses a CDN dependency.
-3. **HTML/CSS cards and tables** for summaries and comparisons.
-4. **Raster images** only if image generation or screenshots are explicitly requested or available.
+## Security & Safety Guardrails
 
-If using Mermaid, include the Mermaid source in the HTML or appendix so it can be edited later, and document the CDN dependency unless Mermaid has been pre-rendered to inline SVG.
+- **XSS Prevention**: Always escape user/source strings (`&amp;`, `&lt;`, `&gt;`, `&quot;`, `&#39;`). Never inject unsanitized HTML into content placeholders.
+- **Traceability**: Never alter or drop normative RFC 2119 keywords or identifier names. Maintain explicit mapping to original `@spec:` tags or file headings in the traceability appendix.
+- **Domain Neutrality**: Do not hardcode domain-specific concepts (e.g., medical, financial, specific app models) into this skill definition or templates. Keep all prompts, examples, and styles completely project-agnostic.
 
-## HTML Output Requirements
+---
 
-Use `references/template.html` as the base HTML template and `references/html-output-template.md` as the component guide when generating a complete HTML file. Copy the full `<style>` block and section structure from the template, then replace `{{PLACEHOLDER}}` tokens with content derived from the source.
+## Pre-Delivery Quality Checklist
 
-The HTML should usually include:
+Before finalizing any generated HTML document, verify:
 
-- Document title and short subtitle
-- Generated date or source version if known
-- Executive summary
-- Table of contents
-- Summary cards for key points
-- Main sections with concise headings
-- Tables for requirements, APIs, data fields, decisions, risks, and open questions
-- Visual diagrams with captions
-- Source traceability notes
-- Print-friendly styling
-
-For dense technical specs, include badges such as:
-
-- `Must`, `Should`, `Could`
-- `Confirmed`, `Inferred`, `Assumption`, `Open Question`
-- `High Risk`, `Medium Risk`, `Low Risk`
-
-## HTML Safety and Escaping
-
-- Treat source-derived prose, table cell content, captions, metadata, and placeholder replacements as untrusted text by default.
-- HTML-escape `&`, `<`, `>`, `"`, and `'` before inserting source text into text nodes or attributes, unless deliberately emitting generated, safe markup.
-- Do not pass raw source HTML through by default. If limited HTML is required, use a small allowlist of semantic tags and safe attributes.
-- Keep code blocks and source excerpts as escaped text inside `<pre><code>` or equivalent containers.
-- When source content is used inside Mermaid labels, quote or escape labels so user-provided HTML, event handlers, and `javascript:` URLs are not emitted into the page.
-- Inline SVG may be generated by the agent, but SVG or HTML copied from the source must be sanitized or replaced with a safe generated diagram.
-
-## Rules for Summarization and Inference
-
-- Never remove contractual or normative requirements without indicating they were summarized.
-- Preserve keywords such as MUST, SHOULD, SHALL, required, optional, deprecated.
-- Keep IDs, endpoint paths, field names, status names, enum values, error codes, and limits exact.
-- If a diagram requires interpretation, label it as an inferred view.
-- If the source is ambiguous, create an `Open Questions` section instead of guessing.
-
-## Language
-
-Default output language is Japanese (`<html lang="ja">`). If the user requests a different language, use that language for all headings, badges, labels, and body text. Keep technical terms (API names, field names, paths, code identifiers) in their original language regardless.
-
-## Quality Checklist
-
-Before finalizing, verify:
-
-- [ ] The output is more readable than the source, not merely converted.
-- [ ] Important requirements and constraints are preserved.
-- [ ] Summaries do not change meaning.
-- [ ] Visuals are accurate and useful.
-- [ ] Inferred content and assumptions are labeled.
-- [ ] Tables are used for structured details.
-- [ ] The HTML has a table of contents.
-- [ ] The file is standalone, or dependencies such as Mermaid CDN are documented.
-- [ ] Accessibility basics are covered: headings, contrast, alt text/captions.
+- [ ] **Mode**: Correctly selected Portal Mode vs. Single Spec Mode.
+- [ ] **Navigation**: `.global-nav` is present, correctly categorized, and highlights the current document as `.active`.
+- [ ] **Key Takeaways**: `.key-takeaway` provides a clear 3-bullet executive summary at the top.
+- [ ] **Visual Completeness**: Every page has at least one valid Mermaid diagram enclosed in `<figure class="diagram-container">`.
+- [ ] **Before/After**: `.comparison-grid` clearly contrasts risks without the spec vs. value with it.
+- [ ] **Scenario**: `.scenario-box` traces an end-to-end example with `[Inferred]` / `[Example]` badges.
+- [ ] **Table Responsiveness**: Every table is wrapped in `.table-responsive`.
+- [ ] **Integrity**: Mermaid syntax parses without syntax errors; Pan & Zoom modal functions properly.

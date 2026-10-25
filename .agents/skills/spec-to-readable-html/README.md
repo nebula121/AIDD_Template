@@ -1,43 +1,71 @@
-# spec-to-readable-html
+# Spec to Readable HTML
 
-Markdown / テキストの仕様書を、**要約・構造再編・図解・トレーサビリティ付きの「読みやすい HTML ドキュメント」**に変換する [Agent Skill](https://github.com/vercel-labs/skills) です。
+Markdown / テキストの仕様書を、**認知展開（Cognitive Unpacking）・図解・トレーサビリティ付きの「人間向けビジュアル HTML ドキュメント」**へ変換する [Agent Skill](https://github.com/vercel-labs/skills) です。
 
-単なる Markdown → HTML 変換ではありません。内容を解析して要約・再構成し、フローチャート / シーケンス図 / ER 図やカード・表などの視覚補助を加え、元仕様へのトレーサビリティを保ったまま 1 枚のポータブルな HTML を生成します。CSS は埋め込み、Mermaid 図を使う場合は既定で CDN に依存します。完全な自己完結 HTML が必要な場合は inline SVG を使用してください。
+[nebula121/AIDD_Template](https://github.com/nebula121/AIDD_Template) をはじめとする 3層CQRS仕様書体系における **Human Read-Only View** 生成スキルとして最適化されています。単なる Markdown &rarr; HTML 変換や表層的な要約ではなく、形式知化された規則や表の背景にある「設計の意図」「導入価値」「具象データ」を紐解き、人間の迅速な理解と合意形成を支援します。
 
-## 特長
+---
 
-- **要約と再構成** — 長い仕様を読み手向けに整理（要件 / API / データ / リスク / 未決事項）
-- **視覚化** — Mermaid 図（フロー・シーケンス・状態・ER）、サマリーカード、バッジ、表
-- **トレーサビリティ** — 出力の各セクションを元仕様にマッピング（Preserved / Summarized / Inferred）
-- **ポータブル HTML** — 埋め込み CSS、目次、図のズーム表示、印刷対応。Mermaid 使用時は CDN 依存あり（完全自己完結が必要なら inline SVG）
-- **多言語** — 既定は日本語。`lang` 引数で切り替え
+## 主な特長
+
+### 1. Cognitive Unpacking（認知展開プロトコル）
+- **Key Takeaways (冒頭3行まとめ)**: 仕様書の要点を3行で抽出し、最上部にハイライト表示（`.key-takeaway`）。
+- **Why ＆ Before/After 比較**: 「制約がない場合のリスク（Before）」と「本仕様による保証と価値（After）」を直感的な対比カードで可視化（`.comparison-grid`）。
+- **具象シナリオトレース**: 抽象的な型や状態遷移を、実例データとステップ番号で具体化（`.scenario-box`）。補足・推論箇所には `[Inferred]` / `[Example]` バッジを明記。
+
+### 2. Visual Completeness（図解の必須化）
+- すべての仕様書ページに最低1つの Mermaid 図解（システム構造、多重防御、状態遷移、パイプライン等）を必ず配置。
+- 拡大・縮小・パン移動が可能なライトボックスモーダル（Pan & Zoom）を標準搭載。
+
+### 3. ポータルモード ＆ 単一仕様書モード
+- **ポータルモード**: `docs/spec-router.md` がある環境や全体指定時は、`docs/html/index.html`（DAGネットワーク図、ロール別読書順、カタログ表）と各仕様書 HTML を一括生成。全ページ共通の階層ナビゲーションバー（`.global-nav`）でシームレスに行き来可能。
+- **単一仕様書モード**: 特定の1ファイルのみをピンポイントで変換可能。
+
+### 4. レスポンシブ組版 ＆ ポータビリティ
+- 幅広テーブルを横スクロールさせるコンテナ（`.table-responsive`）により、画面崩れを防止。
+- CSS は単一ファイルへ埋め込み。Mermaid CDN を標準利用しつつ、オフライン/完全自己完結を要求された場合は inline SVG にフォールバック可能。
+
+---
 
 ## インストール
 
 [`npx skills`](https://github.com/vercel-labs/skills) を使う場合:
 
 ```bash
-npx skills add KeMezz/spec-to-readable-html
+npx skills add nebula121/spec-to-readable-html
 ```
 
-または、`SKILL.md` と `references/` をエージェントのスキルディレクトリ（`~/.claude/skills/spec-to-readable-html/` など）に手動で配置してください。
+または、`SKILL.md` と `references/` をエージェントのスキルディレクトリ（`~/.claude/skills/spec-to-readable-html/` やプロジェクトの `.agents/skills/spec-to-readable-html/` など）に配置してください。
+
+---
 
 ## 使い方
 
-Claude Code などで仕様書（Markdown / テキスト）を渡し、本スキルを呼び出します。
+エージェント環境（Antigravity, Claude Code 等）で仕様書を指定し、本スキルを呼び出します。
 
 ```
-/spec-to-readable-html ja
+# 全体ポータルおよび仕様書群を生成（ポータルモード）
+/spec-to-readable-html
+
+# 特定の仕様書のみを生成（単一仕様書モード）
+/spec-to-readable-html docs/components/my-component.md
+
+# 言語を指定して生成（既定: ja）
+/spec-to-readable-html docs/system/overview.md en
 ```
 
-`lang` を省略すると日本語で出力します。
+---
 
-## 出力テンプレートのカスタマイズ
+## 出力テンプレートとカスタマイズ
 
-`references/template.html` をベース HTML として使用します。ロゴと配色はプレースホルダ／中立色にしてあるので、自分のブランドに合わせて変更できます。
+`references/template.html` をベース HTML として使用します。
+スタイルや配色はデザイントークンとして整理されているため、プロジェクトのブランドに合わせて容易に変更できます。
 
-- **ロゴ** — `{{LOGO}}` に `<svg>` / `<img>` を差し込み（不要なら削除可）
-- **配色** — `:root` の `--color-*` トークンを変更
+- **配色**: `:root` の `--color-*` トークンを変更
+- **ロゴ**: `{{LOGO}}` に `<svg>` や `<img>` を差し込み（不要なら削除可）
+- **マークアップ見本**: [references/html-output-template.md](references/html-output-template.md) を参照
+
+---
 
 ## ライセンス
 
