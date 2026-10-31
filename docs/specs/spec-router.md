@@ -53,7 +53,7 @@ flowchart TD
 <!-- @generated:spec-table-start -->
 | Layer | 仕様書 | タイトル | 主タグ | セクションサブタグ | 対象スコープ | 依存仕様 |
 | :---: | :--- | :--- | :--- | :--- | :--- | :--- |
-| **0** | [AGENTS.md](../../AGENTS.md) | AI行動規範 | `@spec:agents-guideline` | `agent-context-retrieval`, `agent-invincible-rules`, `agent-task-execution`, `agent-three-layer-structure` | `AGENTS.md` | - |
+| **0** | [AGENTS.md](../../AGENTS.md) | AI行動規範 | `@spec:agents-guideline` | `agent-context-retrieval`, `agent-four-layer-structure`, `agent-invincible-rules`, `agent-task-execution` | `AGENTS.md` | - |
 | **-** | [spec-router.md](spec-router.md) | 仕様書ルーティングマップ | `@spec:spec-router` | `spec-routing-table` | `docs/specs/**/*.md` | `agents-guideline` |
 | **1** | [core-rules.md](core-rules.md) | コア不可侵ルール | `@spec:core-rules` | `architecture-and-security-rules`, `lifecycle-and-test-rules` | `**/*` | `agents-guideline` |
 | **2** | [system/architecture.md](system/architecture.md) | システムアーキテクチャ ＆ コンポーネント構成 | `@spec:system-architecture` | `architecture-diagram`, `component-map`, `data-flow`, `usecase-map` | `**/*` | `core-rules`, `system-overview`, `domain-rules` |

@@ -1,6 +1,6 @@
 # AIDD テンプレートリポジトリ
 
-**3層プロンプト構造**および**仕様書駆動開発（Specification-Driven Development: SDD）**に基づくAI駆動開発テンプレートリポジトリ。
+**4層アーキテクチャ**および**仕様書駆動開発（Specification-Driven Development: SDD）**に基づくAI駆動開発テンプレートリポジトリ。
 
 ---
 
@@ -16,7 +16,7 @@ BOOTSTRAP.md の手順に従い、このプロジェクトに適合させた仕�
 
 ## 2. アーキテクチャ概要
 
-### 2.1 3層構造と不変・可変の分離
+### 2.1 4層アーキテクチャと不変・可変の分離
 
 | Layer | 配置 | ファイル | 区分 | 役割 |
 | :---: | :--- | :--- | :---: | :--- |
@@ -25,6 +25,7 @@ BOOTSTRAP.md の手順に従い、このプロジェクトに適合させた仕�
 | **1** | `docs/specs/` | [core-rules.md](docs/specs/core-rules.md) | **不変** | システム憲法・共通エンジニアリング不可侵ルール |
 | **2** | `docs/specs/` | `system/*.md` | **可変** | システム全体設計（概要・ドメイン・全体設計・技術スタック） |
 | **3** | `docs/specs/` | [components/_template.md](docs/specs/components/_template.md), `components/<id>.md` | **不変 / 可変** | 個別仕様正本（単一責務コンポーネントの公開IF・契約・受入条件） |
+| **4** | `docs/specs/` | [usecases/_template.md](docs/specs/usecases/_template.md), `usecases/<id>.md` | **不変 / 可変** | ユースケース正本（動的振る舞い・アクター・協調シーケンス・受入シナリオ） |
 | **(Tools)** | `.agents/skills/` | `workflow`, `local-workflow`, `ponytail`, `spec-verification`, `spec-to-readable-html` 他 | **不変** | 手順・スキル運用（開発ワークフロー・静的検証・HTML変換等の実行ツール群） |
 
 ### 2.2 AI用SSOTと人間用Viewの分離
@@ -32,7 +33,7 @@ BOOTSTRAP.md の手順に従い、このプロジェクトに適合させた仕�
 - **📄 Markdown (`docs/specs/**/*.md`) — AI・機械検証用SSOT**:
   - AIのピンポイント参照効率と [`spec-verification`](.agents/skills/spec-verification/SKILL.md) による静的検証に最適化された、装飾・要約ゼロの高密度な契約正本。
 - **🌐 HTML (`/spec-to-readable-html`) — 人間閲覧用View**:
-  - 人間が仕様全体を低い認知負荷（要約カード・図解・色付きバッジ・目次サイドバー）で俯瞰したい場合は、`/spec-to-readable-html` スキルを実行して閲覧用HTMLをオンデマンド生成する（生成HTMLは `.gitignore` によりGit非追跡）。
+  - 人間が仕様全体を低い認知負荷（要約カード・図解・色付きバッジ・目次サイドバー）で俯瞰したい場合は、`/spec-to-readable-html` スキルを実行して閲覧用HTML（`docs/specs-html/`）をオンデマンド生成する（生成HTMLは `.gitignore` によりGit非追跡）。
 
 ---
 
