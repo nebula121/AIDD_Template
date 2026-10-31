@@ -2,7 +2,7 @@
 
 Markdown / テキストの仕様書を、**認知展開（Cognitive Unpacking）・図解・トレーサビリティ付きの「人間向けビジュアル HTML ドキュメント」**へ変換する [Agent Skill](https://github.com/vercel-labs/skills) です。
 
-[nebula121/AIDD_Template](https://github.com/nebula121/AIDD_Template) をはじめとする 3層CQRS仕様書体系における **Human Read-Only View** 生成スキルとして最適化されています。単なる Markdown &rarr; HTML 変換や表層的な要約ではなく、形式知化された規則や表の背景にある「設計の意図」「導入価値」「具象データ」を紐解き、人間の迅速な理解と合意形成を支援します。
+[nebula121/AIDD_Template](https://github.com/nebula121/AIDD_Template) をはじめとする 4層CQRS仕様書体系における **Human Read-Only View** 生成スキルとして最適化されています。単なる Markdown &rarr; HTML 変換や表層的な要約ではなく、形式知化された規則や表の背景にある「設計の意図」「導入価値」「具象データ」を紐解き、人間の迅速な理解と合意形成を支援します。
 
 ---
 
@@ -18,7 +18,7 @@ Markdown / テキストの仕様書を、**認知展開（Cognitive Unpacking）
 - 拡大・縮小・パン移動が可能なライトボックスモーダル（Pan & Zoom）を標準搭載。
 
 ### 3. ポータルモード ＆ 単一仕様書モード
-- **ポータルモード**: `docs/specs/spec-router.md` がある環境や全体指定時は、`docs/html/index.html`（DAGネットワーク図、ロール別読書順、カタログ表）と各仕様書 HTML を一括生成。全ページ共通の階層ナビゲーションバー（`.global-nav`）でシームレスに行き来可能。
+- **ポータルモード**: `docs/specs/spec-router.md` がある環境や全体指定時は、`docs/specs-html/index.html`（DAGネットワーク図、ロール別読書順、カタログ表）と各仕様書 HTML を一括生成。全ページ共通の階層ナビゲーションバー（`.global-nav`）でシームレスに行き来可能。
 - **単一仕様書モード**: 特定の1ファイルのみをピンポイントで変換可能。
 
 ### 4. レスポンシブ組版 ＆ ポータビリティ
