@@ -10,7 +10,7 @@ dependencies: []
 
 <!-- @spec:agents-guideline -->
 
-## 1. 3層アーキテクチャ ＆ CQRS仕様分離
+## 1. 4層アーキテクチャ ＆ CQRS仕様分離
 
 <!-- @spec:agent-three-layer-structure -->
 
@@ -20,7 +20,8 @@ dependencies: []
 | **Layer -** | **ルーティング索引** | `docs/spec/spec-router.md` | AI / 人間 | 全仕様書の地図・Mermaidネットワーク図（Frontmatterから完全自動生成・手動編集禁止） |
 | **Layer 1** | **システム憲法** | `docs/spec/core-rules.md` | AI / 検証器 | プロジェクト不変条件・アーキテクチャ/セキュリティ共通制約（SSOT正本） |
 | **Layer 2** | **システム全体設計** | `docs/spec/system/*.md` | AI / 検証器 | 概要・ドメインルール・全体アーキテクチャ・技術スタック（SSOT正本） |
-| **Layer 3** | **個別仕様正本** | `docs/spec/components/*.md` | AI / 検証器 | 単一責務コンポーネントの公開IF・契約・受入条件（SSOT正本） |
+| **Layer 3** | **個別仕様正本（静的構造）** | `docs/spec/components/*.md` | AI / 検証器 | 単一責務コンポーネントの公開IF・契約・単体受入条件（SSOT正本） |
+| **Layer 4** | **ユースケース正本（動的振る舞い）** | `docs/spec/usecases/*.md` | AI / 検証器 | アクター・協調シーケンス・Given/When/Then シナリオ群（SSOT正本） |
 | **(Tools)** | **手順・スキル運用** | `.agents/skills/` | AI / 人間 | 開発ワークフロー・静的検証・人間向けHTML変換（オンデマンド実行ツール群） |
 
 | 表現形式 | 役割 (CQRS) | 記述・運用規約 | Git管理 |
@@ -49,7 +50,7 @@ dependencies: []
 | **調査と変更の分離** | 指示が「調査・確認・質問」の場合は結果報告のみに留める (**MUST**)。変更時は必ず事前に作業ブランチへ切り替える (**MUST**)。 | 実装計画の事前承認なき自律変更、およびbaseブランチ（`main` 等）上での直接編集・直接コミット (**MUST NOT**)。 |
 | **Ponytail最小構成** | [ponytail](.agents/skills/ponytail/SKILL.md) に従い最短・最小差分で実装する (**MUST**)。 | 仕様にない抽象化・単一実装IF・過剰ボイラープレートの作成 (**MUST NOT**)。 |
 | **SDD ＆ SSOT** | 実装前に仕様書の受入条件と検証テストを揃える (**MUST**)。仕様変更時は [spec-verification](.agents/skills/spec-verification/SKILL.md) を実行する (**MUST**)。 | 仕様なき実装（No Spec, No Code）、仕様の重複定義、派生HTMLの編集・コミット (**MUST NOT**)。 |
-| **ドキュメントDAG** | Layer 0 → 1 → 2 → 3 の単方向依存（DAG）を維持する (**MUST**)。上位レイヤーが下位レイヤーに依存することは禁止 (**MUST NOT**)。spec-router.md は自動生成され手動編集および他仕様書からの依存を禁止する (**MUST NOT**)。案内リンクと仕様依存（`dependencies`）を区別する (**MUST**)。 | レイヤー逆転依存、循環依存、下位文書による上位規範の上書き、索引への逆依存 (**MUST NOT**)。 |
+| **ドキュメントDAG** | Layer 0 → 1 → 2 → 3 → 4 の単方向依存（DAG）を維持する (**MUST**)。上位レイヤーが下位レイヤーに依存することは禁止 (**MUST NOT**)。spec-router.md は自動生成され手動編集および他仕様書からの依存を禁止する (**MUST NOT**)。案内リンクと仕様依存（`dependencies`）を区別する (**MUST**)。 | レイヤー逆転依存、循環依存、下位文書による上位規範の上書き、索引への逆依存 (**MUST NOT**)。 |
 | **サブエージェント協調** | 親は対話・統制・設計・受入を担い、起動コストを上回る実益（並列化・コンテキスト節約・客観検証）がある独立課題を子へ委任する (**MUST**)。リサーチ等は軽量モデル（`flash` / `flash_lite` 等）を指定する (**SHOULD**)。 | 曖昧な責務での委任、サブエージェント成果物の無検証受入 (**MUST NOT**)。 |
 | **言語・エンコード** | チャットおよび作成ドキュメントは日本語、文字コードは UTF-8 を標準とする (**MUST**)。 | 既存ファイルの意図しないエンコード・改行コード変更 (**MUST NOT**)。 |
 

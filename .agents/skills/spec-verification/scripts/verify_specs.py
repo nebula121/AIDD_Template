@@ -18,6 +18,7 @@ IMMUTABLE_FILES = [
     "AGENTS.md",
     "docs/spec/core-rules.md",
     "docs/spec/components/_template.md",
+    "docs/spec/usecases/_template.md",
 ]
 
 PLACEHOLDER_PATTERNS = [
@@ -27,7 +28,7 @@ PLACEHOLDER_PATTERNS = [
     (r"<[^>\n]*[ぁ-んァ-ヶ一-龠々ー][^>\n]*>", "Unfilled template placeholder '<...>'"),
 ]
 
-LAYER_ORDER = {0: 0, "-": 1, 1: 2, 2: 3, 3: 4}
+LAYER_ORDER = {0: 0, "-": 1, 1: 2, 2: 3, 3: 4, 4: 5}
 
 
 def infer_layer_from_path(rel_path: str) -> int | str | None:
@@ -42,6 +43,11 @@ def infer_layer_from_path(rel_path: str) -> int | str | None:
         return 2
     if rel_path.startswith("docs/spec/components/"):
         return 3
+
+    if rel_path.startswith("docs/spec/usecases/"):
+        return 4
+
+
     return None
 
 DAG_START_MARKER = "<!-- @generated:spec-dag-start -->"
@@ -234,6 +240,7 @@ def generate_mermaid_dag(specs_by_id: dict[str, dict]) -> str:
         (1, "L1", "Layer 1: Core Rules"),
         (2, "L2", "Layer 2: System Architecture"),
         (3, "L3", "Layer 3: Components"),
+        (4, "L4", "Layer 4: Use Cases"),
     ]
     lines = ["```mermaid", "flowchart TD"]
 
@@ -241,7 +248,7 @@ def generate_mermaid_dag(specs_by_id: dict[str, dict]) -> str:
         layer_specs = [
             meta
             for meta in specs_by_id.values()
-            if meta.get("layer") == layer_num and meta.get("spec_id") != "component-template"
+            if meta.get("layer") == layer_num and meta.get("spec_id") not in ("component-template", "usecase-template")
         ]
         if not layer_specs:
             continue
@@ -261,13 +268,13 @@ def generate_mermaid_dag(specs_by_id: dict[str, dict]) -> str:
     # Dependency edges
     edges: list[tuple[str, str]] = []
     for spec_id, meta in specs_by_id.items():
-        if meta.get("layer") == "-" or spec_id == "component-template":
+        if meta.get("layer") == "-" or spec_id in ("component-template", "usecase-template"):
             continue
         for dep_id in meta.get("dependencies", []):
             if (
                 dep_id in specs_by_id
                 and specs_by_id[dep_id].get("layer") != "-"
-                and dep_id != "component-template"
+                and dep_id not in ("component-template", "usecase-template")
             ):
                 edges.append((spec_id, dep_id))
 
@@ -304,7 +311,7 @@ def generate_routing_table(root: Path, specs_by_path: dict[str, dict]) -> str:
             rel_link = (Path("..") / Path("..") / target_path.relative_to(root)).as_posix()
         name = (
             rel_link
-            if meta["path"].startswith(("docs/spec/system/", "docs/spec/components/"))
+            if meta["path"].startswith(("docs/spec/system/", "docs/spec/components/", "docs/spec/usecases/"))
             else target_path.name
         )
         spec_link = f"[{name}]({rel_link})"
@@ -425,7 +432,7 @@ def check_strict_leftovers_and_placeholders(
     for rel_path in check_files:
         content = normalize_text((root / rel_path).read_text(encoding="utf-8"))
         for pat, desc in PLACEHOLDER_PATTERNS:
-            if rel_path == "docs/spec/components/_template.md" and "<...>" in desc:
+            if rel_path in ("docs/spec/components/_template.md", "docs/spec/usecases/_template.md") and "<...>" in desc:
                 continue
             if re.search(pat, content):
                 errors.append(f"{rel_path}: {desc} found in --strict mode.")
@@ -622,7 +629,7 @@ def validate_single_spec(
         if status != "stable":
             errors.append(f"{rel_path}: Immutable file must have 'status: stable'.")
         for pat, desc in PLACEHOLDER_PATTERNS:
-            if rel_path == "docs/spec/components/_template.md" and "<...>" in desc:
+            if rel_path in ("docs/spec/components/_template.md", "docs/spec/usecases/_template.md") and "<...>" in desc:
                 continue
             if re.search(pat, text):
                 errors.append(f"{rel_path}: Immutable file contains {desc}.")
