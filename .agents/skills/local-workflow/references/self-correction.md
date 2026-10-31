@@ -10,7 +10,7 @@
 
 | 対象言語 / 環境 | 判定基準ファイル | 標準的なテスト・Lintコマンド例 |
 | :--- | :--- | :--- |
-| **仕様書整合性 (共通必須)** | `AGENTS.md`, `docs/**/*.md` | `python .agents/skills/spec-verification/scripts/verify_specs.py` |
+| **仕様書整合性 (共通必須)** | `AGENTS.md`, `docs/spec/**/*.md` | `python .agents/skills/spec-verification/scripts/verify_specs.py` |
 | **Node.js / TypeScript** | `package.json` | `npm test` / `npm run lint`（または `pnpm test`, `yarn test`, `bun test`） |
 | **Python** | `pyproject.toml`, `requirements.txt`, `pytest.ini` | `pytest` / `ruff check`（または `flake8`, `mypy`） |
 | **Rust** | `Cargo.toml` | `cargo test` / `cargo clippy` |
@@ -19,8 +19,8 @@
 | **汎用・その他** | `Makefile`, `Taskfile.yml` | `make test` / `task test` |
 
 > [!IMPORTANT]
-> - 仕様書（`AGENTS.md`, `docs/**/*.md`）を作成・更新した場合は、`python .agents/skills/spec-verification/scripts/verify_specs.py` を必ず実行すること (**MUST**)。
-> - `docs/core-rules.md` や `docs/system/tech-stack.md`、`docs/components/*.md` に固有の検証コマンドやテスト実行要件が記載されている場合は、それを最優先で遵守すること。
+> - 仕様書（`AGENTS.md`, `docs/spec/**/*.md`）を作成・更新した場合は、`python .agents/skills/spec-verification/scripts/verify_specs.py` を必ず実行すること (**MUST**)。
+> - `docs/spec/core-rules.md` や `docs/spec/system/tech-stack.md`、`docs/spec/components/*.md` に固有の検証コマンドやテスト実行要件が記載されている場合は、それを最優先で遵守すること。
 > - 特殊な構成がある場合は、`package.json` の `"scripts"` やローカルの設定ファイルを確認して実行コマンドを特定する。
 
 ---
