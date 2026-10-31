@@ -150,6 +150,33 @@ class TestWorkflowScripts(unittest.TestCase):
             self.assertNotIn("task/001-sample-task", branches)
             self.assertTrue((tmp / "docs/tasks/completed/001-sample-task.md").exists())
 
+    def test_merge_branch_safety_guard_blocks_unmerged_deletion(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            init_isolated_git_repo(tmp)
+            merge_script = tmp / ".agents/skills/local-workflow/scripts/merge_branch.py"
+
+            # Create unmerged task branch with a distinct commit
+            run_cmd(["git", "checkout", "-b", "task/unmerged-task"], tmp)
+            (tmp / "unmerged_file.txt").write_text("important data\n", encoding="utf-8")
+            run_cmd(["git", "add", "unmerged_file.txt"], tmp)
+            run_cmd(["git", "commit", "-m", "unmerged commit"], tmp)
+
+            # Switch back to main and create a conflict
+            run_cmd(["git", "checkout", "main"], tmp)
+            (tmp / "unmerged_file.txt").write_text("conflicting data\n", encoding="utf-8")
+            run_cmd(["git", "add", "unmerged_file.txt"], tmp)
+            run_cmd(["git", "commit", "-m", "conflict on main"], tmp)
+
+            # Attempt merge - must fail on merge conflict and keep task branch intact
+            res = run_cmd(
+                [sys.executable, str(merge_script), "-b", "task/unmerged-task", "--base-branch", "main"],
+                tmp,
+            )
+            self.assertNotEqual(res.returncode, 0)
+            branches = run_cmd(["git", "branch"], tmp).stdout
+            self.assertIn("task/unmerged-task", branches)
+
 
 if __name__ == "__main__":
     unittest.main()

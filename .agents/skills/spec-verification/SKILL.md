@@ -29,12 +29,12 @@ python .agents/skills/spec-verification/scripts/verify_specs.py --sync
 python .agents/skills/spec-verification/scripts/verify_specs.py
 ```
 - **検査内容**:
-  1. **Frontmatter必須項目 ＆ 見出し1一致検証**: 全仕様書が必須5キー（`spec_id`, `title`, `status`, `target_files`, `dependencies`）のみを持ち（不要な旧 `layer` / `category` 等の余分なキーを含まず）、配置パスから Layer（`0`, `-`, `1`, `2`, `3`）が自動導出され、Frontmatter の `title` と本文の `# (H1)` が完全一致し、本文に主タグを含むこと。
+  1. **Frontmatter必須項目 ＆ 見出し1一致検証**: 全仕様書が必須5キー（`spec_id`, `title`, `status`, `target_files`, `dependencies`）のみを持ち（不要な旧 `layer` / `category` 等の余分なキーを含まず）、配置パスから Layer（`0`, `-`, `1`, `2`, `3`, `4`）が自動導出され、Frontmatter の `title` と本文の `# (H1)` が完全一致し、本文に主タグを含むこと。
   2. **SSOT（一意性）検証**: 全ファイル間で `spec_id` および `<!-- @spec:... -->` タグに重複が存在しないこと。
   3. **ルーティング全単射検証**: `docs/specs/spec-router.md` の登録エントリと、実在する仕様書集合（`AGENTS.md` + `docs/specs/**/*.md` ※`docs/tasks/` 除く）が過不足なく完全一致し、Layer・タイトル・主タグ・セクションサブタグ・`dependencies` が完全一致していること。
   4. **ドキュメントDAG検証**: `dependencies` に未定義の `spec_id` がなく、レイヤー逆流やルーティング索引への逆依存、閉路（循環参照）が存在しないこと。
   5. **リンク＆パス実在検証**: Markdown内の相対ファイルリンクがすべて実在し、`status: stable` な仕様書の `target_files` が実在パス／Globにマッチすること。
-  6. **不変ファイル保護検証**: 不変ファイル3種（`AGENTS.md`, `docs/specs/core-rules.md`, `docs/specs/components/_template.md`）が `status: stable` であり、未記入プレースホルダを含まないこと。
+  6. **不変ファイル保護検証**: 不変ファイル4種（`AGENTS.md`, `docs/specs/core-rules.md`, `docs/specs/components/_template.md`, `docs/specs/usecases/_template.md`）が `status: stable` であり、未記入プレースホルダを含まないこと。
 
 ### 2.2 厳格モード（`--strict`：Bootstrap完了後・実プロジェクト運用時）
 ```bash

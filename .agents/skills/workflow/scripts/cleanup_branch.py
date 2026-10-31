@@ -85,9 +85,6 @@ def main():
     pr_query = str(args.pull_request_number) if args.pull_request_number > 0 else target_branch
     print(f"Verifying PR merge status for TargetBranch '{target_branch}' (query: {pr_query})...")
     res_pr = run_command(["gh", "pr", "view", pr_query, "--json", "number,headRefName,state,mergedAt"])
-    if res_pr.returncode != 0 and args.issue_number > 0 and args.pull_request_number == 0:
-        # Fallback to issue-number if query by branch name failed
-        res_pr = run_command(["gh", "pr", "view", str(args.issue_number), "--json", "number,headRefName,state,mergedAt"])
 
     is_merged = False
     if res_pr.returncode == 0 and res_pr.stdout:
