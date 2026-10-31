@@ -22,7 +22,7 @@ When invoked:
 Before generating HTML, inspect the environment and arguments to choose the operating mode:
 
 ### 1. Portal Mode (`docs/html/index.html` + Multi-Spec Hierarchy)
-- **Trigger**: When `docs/spec/spec-router.md` exists in the repository, or when the user requests generating views for the full project / multiple specifications.
+- **Trigger**: When `docs/specs/spec-router.md` exists in the repository, or when the user requests generating views for the full project / multiple specifications.
 - **Output Structure**:
   - `docs/html/index.html` (Portal page: Hero, dependency DAG network diagram, role-based reading routes, specifications catalog table).
   - `docs/html/<relative-path-to-spec>.html` (Individual specification pages mirroring the source hierarchy, e.g., `docs/html/system/overview.html`).
