@@ -39,6 +39,7 @@ dependencies:
 | `docs/specs/core-rules.md` | システム憲法（Layer 1・不変） |
 | `docs/specs/system/*.md` | システム全体設計（Layer 2・可変） |
 | `docs/specs/components/*.md` | 個別仕様正本（Layer 3・可変 / `_template.md` は不変） |
+| `docs/specs/usecases/*.md` | ユースケース正本（Layer 4・可変 / `_template.md` は不変） |
 | `.agents/skills/` | 手順・スキル運用（(Tools)・不変） |
 | `[要記入: src/ 等]` | `[要記入: アプリケーション実装コード]` |
 | `[要記入: tests/ 等]` | `[要記入: 自動テストスイート]` |

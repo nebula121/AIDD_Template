@@ -12,7 +12,7 @@ dependencies: []
 
 ## 1. 4層アーキテクチャ ＆ CQRS仕様分離
 
-<!-- @spec:agent-three-layer-structure -->
+<!-- @spec:agent-four-layer-structure -->
 
 | 区分 / Layer | 分類 | 配置パス | 対象読者 | 責務と安全境界 |
 | :---: | :--- | :--- | :--- | :--- |
