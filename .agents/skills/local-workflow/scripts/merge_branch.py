@@ -85,12 +85,18 @@ def main():
     print(f"Deleting local task branch '{target_branch}'...")
     res_del = run_command(["git", "branch", "-d", target_branch])
     if res_del.returncode != 0:
-        print("Safe delete (-d) failed. Attempting force delete (-D)...")
-        res_fdel = run_command(["git", "branch", "-D", target_branch])
-        if res_fdel.returncode != 0:
-            print(f"Warning: Failed to delete branch '{target_branch}':\n{res_fdel.stderr}", file=sys.stderr)
+        res_ancestor = run_command(["git", "merge-base", "--is-ancestor", target_branch, base_branch])
+        if res_ancestor.returncode == 0:
+            print("Safe delete (-d) failed (e.g. squash/rebase merged). Verified commits are merged into base, attempting force delete (-D)...")
+            res_fdel = run_command(["git", "branch", "-D", target_branch])
+            if res_fdel.returncode != 0:
+                print(f"Error: Failed to force delete branch '{target_branch}':\n{res_fdel.stderr}", file=sys.stderr)
+                sys.exit(res_fdel.returncode)
+            else:
+                print(f"Successfully force deleted branch '{target_branch}'.")
         else:
-            print(f"Successfully force deleted branch '{target_branch}'.")
+            print(f"Error: Cannot delete branch '{target_branch}': safe delete (-d) failed and branch is not fully merged into '{base_branch}'. Force delete (-D) is blocked to prevent data loss.", file=sys.stderr)
+            sys.exit(1)
     else:
         print(f"Successfully deleted branch '{target_branch}'.")
 

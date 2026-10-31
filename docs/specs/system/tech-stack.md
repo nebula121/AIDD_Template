@@ -54,7 +54,7 @@ dependencies:
 
 | 区分 | 実行コマンド / 採用スキル | 合格基準 |
 | :--- | :--- | :--- |
-| **仕様書整合性** | `python .agents/skills/spec-verification/scripts/verify_specs.py --strict` | エラー `0` 件 (Exit Code `0`) |
+| **仕様書整合性** | `python .agents/skills/spec-verification/scripts/verify_specs.py`（通常開発時）<br>`python .agents/skills/spec-verification/scripts/verify_specs.py --strict`（Bootstrap完了後・実運用時） | エラー `0` 件 (Exit Code `0`) |
 | **ビルド / 型検査** | `[要記入: 例 npm run typecheck / mypy src / cargo check]` | エラー `0` 件 (Exit Code `0`) |
 | **静的解析** | `[要記入: 例 npm run lint / ruff check . / cargo clippy]` | 警告・エラー `0` 件 (Exit Code `0`) |
 | **自動テスト** | `[要記入: 例 npm test / pytest / cargo test]` | 全件 PASS (Exit Code `0`) |
