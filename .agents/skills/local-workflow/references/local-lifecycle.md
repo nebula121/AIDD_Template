@@ -1,6 +1,6 @@
 # ローカルタスク・ライフサイクルガイド (Local Task Lifecycle Guide)
 
-本ドキュメントは、GitHub Issue / PR やリモートリポジトリ連携を使用しない、ローカル環境完結型開発におけるタスク管理・レビュー承認・マージ・完了移動の詳細手順規定である。
+本ドキュメントは、GitHub Issue / PR やリモートリポジトリ連携を使用しない、ローカル環境完結型開発におけるタスク管理・ローカルPR起票・レビュー承認・複数タスク一括解消・マージ・完了移動の詳細手順規定である。`/AI Development Workflow` の規約を踏襲している。
 
 ---
 
@@ -14,7 +14,9 @@
    ```bash
    python .agents/skills/local-workflow/scripts/start_task_branch.py -t 001-setup-auth --title "認証機能の基盤構築"
    ```
-3. **タスク文書（`docs/tasks/<task>.md`）の編集**:
+3. **複数タスクを1つのブランチで扱う場合**:
+   - 1つの作業ブランチ（例: `task/001-setup-auth`）で関連する複数タスクを解消する場合は、追加のタスク文書（例: `docs/tasks/002-login-ui.md`）を `docs/tasks/` 配下に配置・更新して実装を進める。
+4. **タスク文書（`docs/tasks/<task>.md`）の編集**:
    - 生成されたタスク文書内の Goal（受入条件）、Context（仕様リンク）、Technical Details（制約）、Verification（検証手順）を明確化してから実装を開始する。
    - 文書最下部の共通フッター（`<sub>Generated with AI Agent ({{HARNESS_NAME}})</sub>`、ハーネス名を反映）を維持すること。
 
@@ -30,9 +32,9 @@ python .agents/skills/local-workflow/scripts/commit_wip.py -m "作業内容の�
 
 ---
 
-## 3. Walkthrough Artifact 生成と人間へのマージ承認要請
+## 3. ローカルPR起票とWalkthrough生成（人間へのマージ承認要請）
 
-実装および自律テスト（[self-correction.md](self-correction.md)）が全件通過した後、エージェントは直ちにマージを行わず、**必ず人間に成果物の確認・マージ承認を求める**。
+実装および自律テスト（[self-correction.md](self-correction.md)）が全件通過した後、エージェントは直ちにマージを行わず、**ローカルPRの作成およびWalkthroughを人間に提示して成果物の確認・マージ承認を求める**。
 
 1. **差分サマリーの抽出 (Token Economy)**:
    ```bash
@@ -44,23 +46,34 @@ python .agents/skills/local-workflow/scripts/commit_wip.py -m "作業内容の�
    - `ArtifactMetadata` には `UserFacing: true`, `RequestFeedback: true` を指定し、UI上に「Proceed」ボタンを表示させてマージ承認を要請する。
    - 内容には、概要、変更内容（設計判断を含む）、検証結果（全件パスの事実）、派生課題を含める。
    - チャット上では長大な全文を再要約せず、サマリーと Artifact へのリンクのみを案内する。
+3. **ローカル PR 文書 (`docs/tasks/pr-<name>.md`) の起票 (推奨)**:
+   - テンプレート（`resources/PR_TEMPLATE.md`）を踏襲し、解決するタスク（`Closes 001-setup-auth.md, 002-login-ui.md`）を明記した PR 文書を `docs/tasks/` に起票する。
 
 ---
 
-## 4. タスク完了処理とコミット (`complete_task.py`)
+## 4. マージ前クローズ処理とコミット (`complete_task.py`)
 
-人間からマージ承認を得た後、まず作業ブランチ上でタスク文書のステータス更新・保管移動を行い、コミットする。
+人間からマージ承認（Proceedボタン）を得た後、**baseブランチへ切り替える前に、まず作業ブランチ上で複数タスク文書およびPR文書のクローズ処理を行い、コミットする**。
 
 ```bash
-python .agents/skills/local-workflow/scripts/complete_task.py -t 001-setup-auth.md
-python .agents/skills/local-workflow/scripts/commit_wip.py -m "docs: complete task 001-setup-auth" -t 001-setup-auth
+# 単一タスクの場合:
+python .agents/skills/local-workflow/scripts/complete_task.py -t 001-setup-auth.md --walkthrough-file "<appDataDir>/brain/<conversation-id>/walkthrough.md"
+python .agents/skills/local-workflow/scripts/commit_wip.py -m "docs: complete task and record PR" -t 001-setup-auth
+
+# 複数タスクを1つのPRで解消する場合:
+python .agents/skills/local-workflow/scripts/complete_task.py \
+  -t 001-setup-auth.md 002-login-ui.md \
+  --pr-name pr-auth-system \
+  --walkthrough-file "<appDataDir>/brain/<conversation-id>/walkthrough.md"
+python .agents/skills/local-workflow/scripts/commit_wip.py -m "docs: resolve tasks via PR pr-auth-system" -t 001-setup-auth
 ```
 
 - スクリプトにより以下が自動実行される：
-  1. `docs/tasks/001-setup-auth.md` 内の Frontmatter ステータスを `status: "completed"`、本文ステータスを `🟢 完了`、完了日を当日の日付に更新。
-  2. ファイルを `docs/tasks/completed/001-setup-auth.md` に移動。
-  3. `docs/tasks/README.md` 内のリンクを `## 進行中 / 未着手タスク` から `## 完了タスク (Completed Tasks)` 配下へ移動し、アイコンを更新。
-  4. `commit_wip.py` により完了状態を作業ブランチ上でコミットする。
+  1. 対象の全タスク文書内の Frontmatter ステータスを `status: "completed"`、本文ステータスを `🟢 完了`、完了日を当日の日付に更新し、解決PRへのリンクを追記。
+  2. 全タスク文書を `docs/tasks/completed/` に移動。
+  3. PR 文書（`pr-auth-system.md`）のステータスを `merged` に更新し、`docs/tasks/completed/` に配置・移動。
+  4. `docs/tasks/README.md` 内のリンクを `## 進行中 / 未着手タスク` から `## 完了タスク (Completed Tasks)` 配下へ移動し、PR リンクを付与。
+  5. `commit_wip.py` により完了状態を作業ブランチ上でコミットする。
 
 ---
 
@@ -75,8 +88,8 @@ python .agents/skills/local-workflow/scripts/merge_branch.py -b task/001-setup-a
 - スクリプトにより以下が安全に実行される：
   1. 未コミット変更のチェック
   2. ベースブランチ（`main`）への切り替え
-  3. `git merge task/001-setup-auth` の実行
+  3. `git merge task/001-setup-auth` の実行（コード変更・複数タスク完了・PR文書が一括で `main` に反映）
   4. マージ済み作業ブランチの削除
   5. 一時差分ファイルの削除
   6. `git log -n 1 main` によるマージコミットの検証出力
-- マージ完了後、人間に「タスク完了およびマージが正常に完了しました」と最終報告を行う。
+- マージ完了後、人間に「PRにより全タスクの完了およびマージが正常に完了しました」と最終報告を行う。

@@ -5,7 +5,7 @@ description: GitHub連携（リモートPush/PR/Issue）を排除し、完全ロ
 
 # ローカル開発ワークフロー規定 (Local Task Workflow)
 
-本ドキュメントは、GitHub PR やリモート連携を使用せず、ローカル環境単体で安全かつ確実に開発サイクル（タスク文書管理、作業ブランチ運用、テスト自己修復、人間承認後のマージ、タスク完了記録）を推進するためのワークフローである。
+本ドキュメントは、GitHub PR やリモート連携を使用せず、ローカル環境単体で安全かつ確実に開発サイクル（タスク文書管理、作業ブランチ運用、テスト自己修復、ローカルPR起票、人間承認後のマージ、タスク完了記録）を推進するためのワークフローである。`/AI Development Workflow` の規約とライフサイクルを踏襲し、完全ローカル環境向けに最適化している。
 
 > [!IMPORTANT]
 > - **共通行動規範（SSOT）**: 言語・エンコード（日本語・UTF-8）、調査と変更の分離、Ponytail最小構成等の常時行動制約は [AGENTS.md](../../../AGENTS.md) を正本として厳守すること (**MUST**)。
@@ -23,9 +23,10 @@ flowchart TD
     ApprovePlan -- 承認 --> Step2["2. タスク開始 & ブランチ作成<br/>(start_task_branch)"]
     Step2 --> Step3["3. 実装 & WIPコミット<br/>(commit_wip)"]
     Step3 --> Step4["4. テスト & 自己修復<br/>(self-correction)"]
-    Step4 --> Step5["5. 差分要約 & Walkthrough生成<br/>(Artifact: walkthrough.md)"]
+    Step4 --> Step5["5. ローカルPR起票 & Walkthrough生成<br/>(docs/tasks/pr-name.md & walkthrough.md)"]
     Step5 --> ApproveMerge{"人間マージ承認?<br/>(Proceedボタン)"}
-    ApproveMerge -- 承認 --> Step6["6. ローカルマージ & 完了記録<br/>(merge_branch / complete_task)"]
+    ApproveMerge -- 承認 --> Step6["6. マージ前クローズ & コミット<br/>(complete_task: 複数Task & PR移動)"]
+    Step6 --> Step7["7. ローカルマージ & ブランチ削除<br/>(merge_branch)"]
     ApprovePlan -- 修正指示 --> Step1
     ApproveMerge -- 修正指示 --> Step3
 ```
@@ -48,6 +49,7 @@ flowchart TD
 
 * **タスク文書の初期化とブランチ作成 (MUST)**:
   * 計画承認後直ちに専用スクリプトを実行し、`docs/tasks/<task>.md` の生成（初回は `docs/tasks/` も自動作成）と作業ブランチの作成・チェックアウトを一括実行する。
+  * **複数タスクの扱い**: 1つのブランチで複数のタスクを解消する場合は、主タスク名でブランチを作成し、追加のタスク文書は `docs/tasks/` 配下に作成・追記する。
   * **タイトル規約**: タイトルに `[AI]` や絵文字等の接頭辞（Prefix）は付けず、クリーンな日本語タイトルとする (**MUST**)。
   * **AI識別ラベル**: 生成されるタスク文書の Frontmatter に `labels: ["ai-generated"]` が含まれる (**MUST**)。
   * **共通フッター**: 本文末尾に共通フッター（`<sub>Generated with AI Agent ({{HARNESS_NAME}})</sub>`、ハーネス名を反映）を含める (**MUST**)。
@@ -83,7 +85,9 @@ flowchart TD
 
 ---
 
-## 5. 差分要約とWalkthrough（Artifact: walkthrough.md）
+## 5. 差分要約とローカルPR起票・Walkthrough生成
+
+`/AI Development Workflow` を踏襲し、人間へのレビュー要請としてローカル PR 文書と Walkthrough を作成する。
 
 * **差分サマリー抽出**:
   ```bash
@@ -91,22 +95,31 @@ flowchart TD
   ```
 * **Walkthrough の Artifact 出力**:
   * 差分要約およびテスト実行エビデンス（PASSログ）を統合し、`<appDataDir>\brain\<conversation-id>\walkthrough.md` を作成する（`UserFacing: true`, `RequestFeedback: true` でマージ承認を要請）。
+* **ローカルPR文書の作成 (推奨)**:
+  * テンプレート（`.agents/skills/local-workflow/resources/PR_TEMPLATE.md`）に準拠し、解決するタスク（`Closes 001-task.md, 002-task.md`）を明記した `docs/tasks/pr-<name>.md` を起票する。
   * チャット上ではエビデンス概要とリンクのみを提示し、マージ確認を求める。
 
 ---
 
-## 6. 承認後マージとタスク完了処理
+## 6. 承認後クローズ処理とローカルマージ
 
 人間から承認（Proceedボタンまたはチャットでの承認）を受けた後、以下のステップを順次実行する。
 
-1. **タスク文書の完了移動とコミット（作業ブランチ上）**:
-   * 作業ブランチ上でタスク完了処理を実行し、ステータスを `🟢 完了` に更新して `docs/tasks/completed/` に移動した上でコミットする。
+1. **マージ前クローズ処理とコミット（作業ブランチ上）**:
+   * マージ前に必ず作業ブランチ上で、指定された全タスク文書（複数可）および PR 文書のステータスを更新し、`docs/tasks/completed/` に一括移動する。
+   * Artifact の `walkthrough.md` を指定して PR 文書へ検証エビデンスを自動流し込み可能。
    ```bash
-   python .agents/skills/local-workflow/scripts/complete_task.py -t 001-task-name.md
-   python .agents/skills/local-workflow/scripts/commit_wip.py -m "docs: complete task 001-task-name" -t 001-task-name
+   # 単一タスクの場合:
+   python .agents/skills/local-workflow/scripts/complete_task.py -t 001-task-name.md --walkthrough-file "<appDataDir>/brain/<conversation-id>/walkthrough.md"
+   
+   # 複数タスクを1つのPRで一括解消する場合:
+   python .agents/skills/local-workflow/scripts/complete_task.py -t 001-setup-auth.md 002-login-ui.md --pr-name pr-auth-system --walkthrough-file "<appDataDir>/brain/<conversation-id>/walkthrough.md"
+   
+   # 作業ブランチ上で一括コミット:
+   python .agents/skills/local-workflow/scripts/commit_wip.py -m "docs: resolve tasks via PR pr-auth-system" -t 001-setup-auth
    ```
 2. **ローカルマージとブランチ削除**:
-   * マージスクリプトにより、baseブランチへの切り替え、マージ、作業ブランチの削除を一括実行する。完了後のbaseブランチは未コミット変更のないクリーンな状態を維持する。
+   * マージスクリプトにより、baseブランチへの切り替え、マージ（コード・複数タスク完了・PR文書が一括で取り込まれる）、作業ブランチの削除を一括実行する。
    ```bash
    python .agents/skills/local-workflow/scripts/merge_branch.py -b task/001-task-name
    ```
