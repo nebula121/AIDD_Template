@@ -209,18 +209,30 @@ class TestVerifySpecsUnit(unittest.TestCase):
 
     def test_dag_validation_inversions_and_cycles(self) -> None:
         specs_by_id = {
-            "core-rules": {"path": "docs/specs/core-rules.md", "layer": 1, "dependencies": ["comp-a"]},
-            "comp-a": {"path": "docs/specs/components/a.md", "layer": 3, "dependencies": ["comp-b", "spec-router"]},
-            "comp-b": {"path": "docs/specs/components/b.md", "layer": 3, "dependencies": ["comp-a", "unknown-id"]},
-            "spec-router": {"path": "docs/specs/spec-router.md", "layer": "-", "dependencies": []},
+            "core-rules": {"path": "docs/specs/core-rules.md", "category": 1, "dependencies": ["comp-a"]},
+            "comp-a": {"path": "docs/specs/components/a.md", "category": "components", "dependencies": ["comp-b", "spec-router"]},
+            "comp-b": {"path": "docs/specs/components/b.md", "category": "components", "dependencies": ["comp-a", "unknown-id"]},
+            "spec-router": {"path": "docs/specs/spec-router.md", "category": "-", "dependencies": []},
         }
         errors: list[str] = []
         verify_specs.check_dag_cycles(specs_by_id, errors)
         joined = "\n".join(errors)
-        self.assertIn("Layer inversion in DAG", joined)
+        self.assertIn("cannot depend on project spec", joined)
         self.assertIn("cannot depend on router index", joined)
         self.assertIn("Unknown dependency spec_id 'unknown-id'", joined)
         self.assertIn("Document DAG cycle detected", joined)
+
+    def test_dynamic_category_and_template_dag(self) -> None:
+        specs_by_id = {
+            "agents-guideline": {"path": "AGENTS.md", "category": 0, "spec_id": "agents-guideline", "dependencies": []},
+            "core-rules": {"path": "docs/specs/core-rules.md", "category": 1, "spec_id": "core-rules", "dependencies": ["agents-guideline"]},
+            "service-auth": {"path": "docs/specs/services/auth.md", "category": "services", "spec_id": "service-auth", "dependencies": ["core-rules"]},
+            "service-template": {"path": "docs/specs/services/_template.md", "category": "services", "spec_id": "service-template", "dependencies": ["core-rules"]},
+        }
+        mermaid_dag = verify_specs.generate_mermaid_dag(specs_by_id)
+        self.assertIn('subgraph services["services"]', mermaid_dag)
+        self.assertIn('service-auth["services/auth.md"]', mermaid_dag)
+        self.assertNotIn("service-template", mermaid_dag)
 
 
 class TestVerifySpecsIntegration(unittest.TestCase):
