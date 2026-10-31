@@ -454,7 +454,7 @@ def check_strict_leftovers_and_placeholders(
         if is_template_file(rel_path):
             continue
         content = normalize_text((root / rel_path).read_text(encoding="utf-8"))
-        check_content = content.replace("<分類>", "") if rel_path == "AGENTS.md" else content
+        check_content = content.replace("<分類>", "")
         for pat, desc in PLACEHOLDER_PATTERNS:
             if re.search(pat, check_content):
                 errors.append(f"{rel_path}: {desc} found in --strict mode.")
@@ -644,7 +644,7 @@ def validate_single_spec(
         if status != "stable":
             errors.append(f"{rel_path}: Immutable file must have 'status: stable'.")
         if not is_template:
-            check_text = text.replace("<分類>", "") if rel_path == "AGENTS.md" else text
+            check_text = text.replace("<分類>", "")
             for pat, desc in PLACEHOLDER_PATTERNS:
                 if re.search(pat, check_text):
                     errors.append(f"{rel_path}: Immutable file contains {desc}.")
