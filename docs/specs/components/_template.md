@@ -3,7 +3,7 @@ spec_id: component-template
 title: コンポーネント仕様書テンプレート
 status: stable
 target_files:
-  - docs/spec/components/*.md
+  - docs/specs/components/*.md
 dependencies:
   - core-rules
   - domain-rules
@@ -14,7 +14,7 @@ dependencies:
 
 <!-- @spec:component-template -->
 
-`docs/spec/components/<id>.md` の標準スキーマ正本。新規コンポーネント作成時は以下のFrontmatter・標準サブタグ・4セクション構造化表に厳密に従うこと (**MUST**)。
+`docs/specs/components/<id>.md` の標準スキーマ正本。新規コンポーネント作成時は以下のFrontmatter・標準サブタグ・4セクション構造化表に厳密に従うこと (**MUST**)。
 
 ---
 

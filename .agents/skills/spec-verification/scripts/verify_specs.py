@@ -16,9 +16,9 @@ REQUIRED_FRONTMATTER_KEYS = {
 
 IMMUTABLE_FILES = [
     "AGENTS.md",
-    "docs/spec/core-rules.md",
-    "docs/spec/components/_template.md",
-    "docs/spec/usecases/_template.md",
+    "docs/specs/core-rules.md",
+    "docs/specs/components/_template.md",
+    "docs/specs/usecases/_template.md",
 ]
 
 PLACEHOLDER_PATTERNS = [
@@ -35,16 +35,16 @@ def infer_layer_from_path(rel_path: str) -> int | str | None:
     """Deterministically infer specification layer from repository-relative POSIX path."""
     if rel_path == "AGENTS.md":
         return 0
-    if rel_path == "docs/spec/spec-router.md":
+    if rel_path == "docs/specs/spec-router.md":
         return "-"
-    if rel_path == "docs/spec/core-rules.md":
+    if rel_path == "docs/specs/core-rules.md":
         return 1
-    if rel_path.startswith("docs/spec/system/"):
+    if rel_path.startswith("docs/specs/system/"):
         return 2
-    if rel_path.startswith("docs/spec/components/"):
+    if rel_path.startswith("docs/specs/components/"):
         return 3
 
-    if rel_path.startswith("docs/spec/usecases/"):
+    if rel_path.startswith("docs/specs/usecases/"):
         return 4
 
 
@@ -172,7 +172,7 @@ def collect_spec_files(root: Path) -> list[str]:
     files = []
     if (root / "AGENTS.md").exists():
         files.append("AGENTS.md")
-    docs_dir = root / "docs" / "spec"
+    docs_dir = root / "docs" / "specs"
     if docs_dir.exists():
         for p in sorted(docs_dir.rglob("*.md")):
             rel = p.relative_to(root).as_posix()
@@ -258,8 +258,8 @@ def generate_mermaid_dag(specs_by_id: dict[str, dict]) -> str:
             sid = meta["spec_id"]
             spec_path = Path(meta["path"])
             disp_path = (
-                spec_path.relative_to("docs/spec").as_posix()
-                if meta["path"].startswith("docs/spec/")
+                spec_path.relative_to("docs/specs").as_posix()
+                if meta["path"].startswith("docs/specs/")
                 else spec_path.as_posix()
             )
             lines.append(f'        {sid}["{disp_path}"]')
@@ -287,13 +287,13 @@ def generate_mermaid_dag(specs_by_id: dict[str, dict]) -> str:
 
 
 def generate_routing_table(root: Path, specs_by_path: dict[str, dict]) -> str:
-    """Generate deterministic Markdown table for docs/spec-router.md."""
+    """Generate deterministic Markdown table for docs/specs/spec-router.md."""
     lines = [
         "| Layer | 仕様書 | タイトル | 主タグ | セクションサブタグ | 対象スコープ | 依存仕様 |",
         "| :---: | :--- | :--- | :--- | :--- | :--- | :--- |",
     ]
 
-    router_dir = root / "docs" / "spec"
+    router_dir = root / "docs" / "specs"
 
     sorted_specs = sorted(
         specs_by_path.values(),
@@ -311,7 +311,7 @@ def generate_routing_table(root: Path, specs_by_path: dict[str, dict]) -> str:
             rel_link = (Path("..") / Path("..") / target_path.relative_to(root)).as_posix()
         name = (
             rel_link
-            if meta["path"].startswith(("docs/spec/system/", "docs/spec/components/", "docs/spec/usecases/"))
+            if meta["path"].startswith(("docs/specs/system/", "docs/specs/components/", "docs/specs/usecases/"))
             else target_path.name
         )
         spec_link = f"[{name}]({rel_link})"
@@ -372,9 +372,9 @@ def sync_or_verify_spec_router(
     sync: bool,
     errors: list[str],
 ) -> None:
-    """Synchronize or verify that docs/spec-router.md matches generated DAG and routing table."""
-    router_path = root / "docs" / "spec" / "spec-router.md"
-    rel_path = "docs/spec/spec-router.md"
+    """Synchronize or verify that docs/specs/spec-router.md matches generated DAG and routing table."""
+    router_path = root / "docs" / "specs" / "spec-router.md"
+    rel_path = "docs/specs/spec-router.md"
     if not router_path.exists():
         errors.append(f"{rel_path}: Missing required routing index file.")
         return
@@ -432,7 +432,7 @@ def check_strict_leftovers_and_placeholders(
     for rel_path in check_files:
         content = normalize_text((root / rel_path).read_text(encoding="utf-8"))
         for pat, desc in PLACEHOLDER_PATTERNS:
-            if rel_path in ("docs/spec/components/_template.md", "docs/spec/usecases/_template.md") and "<...>" in desc:
+            if rel_path in ("docs/specs/components/_template.md", "docs/specs/usecases/_template.md") and "<...>" in desc:
                 continue
             if re.search(pat, content):
                 errors.append(f"{rel_path}: {desc} found in --strict mode.")
@@ -441,10 +441,10 @@ def check_strict_leftovers_and_placeholders(
 def check_component_mapping_and_structure(
     root: Path, spec_files: list[str], errors: list[str]
 ) -> None:
-    """Verify 1:1 mapping between docs/spec/system/architecture.md table and docs/components/*.md."""
-    arch_path = root / "docs" / "spec" / "system" / "architecture.md"
+    """Verify 1:1 mapping between docs/specs/system/architecture.md table and docs/components/*.md."""
+    arch_path = root / "docs" / "specs" / "system" / "architecture.md"
     if not arch_path.exists():
-        errors.append("docs/spec/system/architecture.md: Missing architecture spec.")
+        errors.append("docs/specs/system/architecture.md: Missing architecture spec.")
         return
 
     raw_arch = normalize_text(arch_path.read_text(encoding="utf-8"))
@@ -454,7 +454,7 @@ def check_component_mapping_and_structure(
     )
     if not comp_map_match:
         errors.append(
-            "docs/spec/system/architecture.md: Missing '<!-- @spec:component-map -->' section."
+            "docs/specs/system/architecture.md: Missing '<!-- @spec:component-map -->' section."
         )
         return
 
@@ -466,7 +466,7 @@ def check_component_mapping_and_structure(
         link_match = re.search(r"\[[^\]]+\]\(([^)]+)\)", cells[1])
         if not link_match:
             errors.append(
-                f"docs/spec/system/architecture.md: Component row '{cells[0]}' must link to "
+                f"docs/specs/system/architecture.md: Component row '{cells[0]}' must link to "
                 f"'[...](../components/<id>.md)' in column 2."
             )
             continue
@@ -475,24 +475,24 @@ def check_component_mapping_and_structure(
             rel_comp = resolved.relative_to(root.resolve()).as_posix()
             mapped_component_paths.add(rel_comp)
         except ValueError:
-            errors.append(f"docs/spec/system/architecture.md: Invalid component path '{cells[1]}'.")
+            errors.append(f"docs/specs/system/architecture.md: Invalid component path '{cells[1]}'.")
 
     actual_components = {
-        p for p in spec_files if p.startswith("docs/spec/components/") and p != "docs/spec/components/_template.md"
+        p for p in spec_files if p.startswith("docs/specs/components/") and p != "docs/specs/components/_template.md"
     }
 
     if not actual_components:
         errors.append(
-            "docs/spec/components/: No component specs found in --strict mode (at least 1 required)."
+            "docs/specs/components/: No component specs found in --strict mode (at least 1 required)."
         )
 
     for missing in sorted(mapped_component_paths - actual_components):
         errors.append(
-            f"docs/spec/system/architecture.md: Mapped component '{missing}' does not exist in docs/spec/components/."
+            f"docs/specs/system/architecture.md: Mapped component '{missing}' does not exist in docs/specs/components/."
         )
     for unmapped in sorted(actual_components - mapped_component_paths):
         errors.append(
-            f"{unmapped}: Component file is not listed in docs/spec/system/architecture.md component table."
+            f"{unmapped}: Component file is not listed in docs/specs/system/architecture.md component table."
         )
 
     required_headings = ["## 1.", "## 2.", "## 3.", "## 4."]
@@ -629,7 +629,7 @@ def validate_single_spec(
         if status != "stable":
             errors.append(f"{rel_path}: Immutable file must have 'status: stable'.")
         for pat, desc in PLACEHOLDER_PATTERNS:
-            if rel_path in ("docs/spec/components/_template.md", "docs/spec/usecases/_template.md") and "<...>" in desc:
+            if rel_path in ("docs/specs/components/_template.md", "docs/specs/usecases/_template.md") and "<...>" in desc:
                 continue
             if re.search(pat, text):
                 errors.append(f"{rel_path}: Immutable file contains {desc}.")
@@ -684,7 +684,7 @@ def main() -> int:
     parser.add_argument(
         "--sync",
         action="store_true",
-        help="Automatically synchronize docs/spec/spec-router.md (Mermaid DAG and routing table) from spec frontmatters.",
+        help="Automatically synchronize docs/specs/spec-router.md (Mermaid DAG and routing table) from spec frontmatters.",
     )
     args = parser.parse_args()
 

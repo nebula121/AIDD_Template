@@ -23,7 +23,7 @@ labels:
 ---
 
 ## 2. Context (背景・仕様参照)
-<!-- なぜこのタスクを行うのか。関連する仕様書（docs/spec/system/*.md や docs/spec/components/*.md、docs/spec/core-rules.md 等）へのリンクを記載してください。 -->
+<!-- なぜこのタスクを行うのか。関連する仕様書（docs/specs/system/*.md や docs/specs/components/*.md、docs/specs/core-rules.md 等）へのリンクを記載してください。 -->
 
 - 関連仕様書: 
 

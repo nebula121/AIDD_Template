@@ -3,7 +3,7 @@ spec_id: usecase-template
 title: ユースケース仕様書テンプレート
 status: stable
 target_files:
-  - docs/spec/usecases/*.md
+  - docs/specs/usecases/*.md
 dependencies:
   - core-rules
   - domain-rules
@@ -14,7 +14,7 @@ dependencies:
 
 <!-- @spec:usecase-template -->
 
-`docs/spec/usecases/<id>.md` の標準スキーマ正本。新規ユースケース作成時は以下のFrontmatter・標準サブタグ・5セクション構造化表に厳密に従うこと (**MUST**)。
+`docs/specs/usecases/<id>.md` の標準スキーマ正本。新規ユースケース作成時は以下のFrontmatter・標準サブタグ・5セクション構造化表に厳密に従うこと (**MUST**)。
 
 ---
 

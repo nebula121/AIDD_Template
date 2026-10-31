@@ -18,7 +18,7 @@ Markdown / テキストの仕様書を、**認知展開（Cognitive Unpacking）
 - 拡大・縮小・パン移動が可能なライトボックスモーダル（Pan & Zoom）を標準搭載。
 
 ### 3. ポータルモード ＆ 単一仕様書モード
-- **ポータルモード**: `docs/spec/spec-router.md` がある環境や全体指定時は、`docs/html/index.html`（DAGネットワーク図、ロール別読書順、カタログ表）と各仕様書 HTML を一括生成。全ページ共通の階層ナビゲーションバー（`.global-nav`）でシームレスに行き来可能。
+- **ポータルモード**: `docs/specs/spec-router.md` がある環境や全体指定時は、`docs/html/index.html`（DAGネットワーク図、ロール別読書順、カタログ表）と各仕様書 HTML を一括生成。全ページ共通の階層ナビゲーションバー（`.global-nav`）でシームレスに行き来可能。
 - **単一仕様書モード**: 特定の1ファイルのみをピンポイントで変換可能。
 
 ### 4. レスポンシブ組版 ＆ ポータビリティ
@@ -48,10 +48,10 @@ npx skills add nebula121/spec-to-readable-html
 /spec-to-readable-html
 
 # 特定の仕様書のみを生成（単一仕様書モード）
-/spec-to-readable-html docs/spec/components/my-component.md
+/spec-to-readable-html docs/specs/components/my-component.md
 
 # 言語を指定して生成（既定: ja）
-/spec-to-readable-html docs/spec/system/overview.md en
+/spec-to-readable-html docs/specs/system/overview.md en
 ```
 
 ---

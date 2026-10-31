@@ -21,15 +21,15 @@ BOOTSTRAP.md の手順に従い、このプロジェクトに適合させた仕�
 | Layer | 配置 | ファイル | 区分 | 役割 |
 | :---: | :--- | :--- | :---: | :--- |
 | **0** | [AGENTS.md](AGENTS.md) | `AGENTS.md` | **不変** | メタ行動規範・コンテキスト制御・安全境界 |
-| **-** | `docs/spec/` | [spec-router.md](docs/spec/spec-router.md) | **自動生成（手動編集禁止）** | 全仕様書のルーティング索引・Mermaid依存グラフ |
-| **1** | `docs/spec/` | [core-rules.md](docs/spec/core-rules.md) | **不変** | システム憲法・共通エンジニアリング不可侵ルール |
-| **2** | `docs/spec/` | `system/*.md` | **可変** | システム全体設計（概要・ドメイン・全体設計・技術スタック） |
-| **3** | `docs/spec/` | [components/_template.md](docs/spec/components/_template.md), `components/<id>.md` | **不変 / 可変** | 個別仕様正本（単一責務コンポーネントの公開IF・契約・受入条件） |
+| **-** | `docs/specs/` | [spec-router.md](docs/specs/spec-router.md) | **自動生成（手動編集禁止）** | 全仕様書のルーティング索引・Mermaid依存グラフ |
+| **1** | `docs/specs/` | [core-rules.md](docs/specs/core-rules.md) | **不変** | システム憲法・共通エンジニアリング不可侵ルール |
+| **2** | `docs/specs/` | `system/*.md` | **可変** | システム全体設計（概要・ドメイン・全体設計・技術スタック） |
+| **3** | `docs/specs/` | [components/_template.md](docs/specs/components/_template.md), `components/<id>.md` | **不変 / 可変** | 個別仕様正本（単一責務コンポーネントの公開IF・契約・受入条件） |
 | **(Tools)** | `.agents/skills/` | `workflow`, `local-workflow`, `ponytail`, `spec-verification`, `spec-to-readable-html` 他 | **不変** | 手順・スキル運用（開発ワークフロー・静的検証・HTML変換等の実行ツール群） |
 
 ### 2.2 AI用SSOTと人間用Viewの分離
 
-- **📄 Markdown (`docs/spec/**/*.md`) — AI・機械検証用SSOT**:
+- **📄 Markdown (`docs/specs/**/*.md`) — AI・機械検証用SSOT**:
   - AIのピンポイント参照効率と [`spec-verification`](.agents/skills/spec-verification/SKILL.md) による静的検証に最適化された、装飾・要約ゼロの高密度な契約正本。
 - **🌐 HTML (`/spec-to-readable-html`) — 人間閲覧用View**:
   - 人間が仕様全体を低い認知負荷（要約カード・図解・色付きバッジ・目次サイドバー）で俯瞰したい場合は、`/spec-to-readable-html` スキルを実行して閲覧用HTMLをオンデマンド生成する（生成HTMLは `.gitignore` によりGit非追跡）。
@@ -38,7 +38,7 @@ BOOTSTRAP.md の手順に従い、このプロジェクトに適合させた仕�
 
 ## 3. 仕様書整合性の機械検証
 
-仕様書（`docs/spec/`）のFrontmatter・SSOT（`@spec`タグ一意性）・ルーティング全単射・単方向DAG・リンク実在性は、以下のコマンドで機械検証されます：
+仕様書（`docs/specs/`）のFrontmatter・SSOT（`@spec`タグ一意性）・ルーティング全単射・単方向DAG・リンク実在性は、以下のコマンドで機械検証されます：
 
 ```bash
 # テンプレート状態の構造検証

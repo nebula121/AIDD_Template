@@ -36,7 +36,7 @@ def setup_isolated_repo(tmp: Path, strict_ready: bool = False) -> None:
 
     if strict_ready:
         (tmp / "README.md").write_text("# Test Project\n", encoding="utf-8")
-        (tmp / "docs/spec/system/overview.md").write_text(
+        (tmp / "docs/specs/system/overview.md").write_text(
             """---
 spec_id: system-overview
 title: システム概要 ＆ スコープ
@@ -54,7 +54,7 @@ dependencies:
 """,
             encoding="utf-8",
         )
-        (tmp / "docs/spec/system/domain-rules.md").write_text(
+        (tmp / "docs/specs/system/domain-rules.md").write_text(
             """---
 spec_id: domain-rules
 title: ドメイン用語 ＆ ドメイン不可侵ルール
@@ -73,7 +73,7 @@ dependencies:
 """,
             encoding="utf-8",
         )
-        (tmp / "docs/spec/system/architecture.md").write_text(
+        (tmp / "docs/specs/system/architecture.md").write_text(
             """---
 spec_id: system-architecture
 title: システムアーキテクチャ ＆ コンポーネント構成
@@ -111,7 +111,7 @@ dependencies:
 """,
             encoding="utf-8",
         )
-        (tmp / "docs/spec/system/tech-stack.md").write_text(
+        (tmp / "docs/specs/system/tech-stack.md").write_text(
             """---
 spec_id: tech-stack
 title: 技術スタック ＆ 開発検証環境
@@ -131,7 +131,7 @@ dependencies:
 """,
             encoding="utf-8",
         )
-        (tmp / "docs/spec/components/auth.md").write_text(
+        (tmp / "docs/specs/components/auth.md").write_text(
             """---
 spec_id: component-auth
 title: 認証コンポーネント
@@ -209,10 +209,10 @@ class TestVerifySpecsUnit(unittest.TestCase):
 
     def test_dag_validation_inversions_and_cycles(self) -> None:
         specs_by_id = {
-            "core-rules": {"path": "docs/spec/core-rules.md", "layer": 1, "dependencies": ["comp-a"]},
-            "comp-a": {"path": "docs/spec/components/a.md", "layer": 3, "dependencies": ["comp-b", "spec-router"]},
-            "comp-b": {"path": "docs/spec/components/b.md", "layer": 3, "dependencies": ["comp-a", "unknown-id"]},
-            "spec-router": {"path": "docs/spec/spec-router.md", "layer": "-", "dependencies": []},
+            "core-rules": {"path": "docs/specs/core-rules.md", "layer": 1, "dependencies": ["comp-a"]},
+            "comp-a": {"path": "docs/specs/components/a.md", "layer": 3, "dependencies": ["comp-b", "spec-router"]},
+            "comp-b": {"path": "docs/specs/components/b.md", "layer": 3, "dependencies": ["comp-a", "unknown-id"]},
+            "spec-router": {"path": "docs/specs/spec-router.md", "layer": "-", "dependencies": []},
         }
         errors: list[str] = []
         verify_specs.check_dag_cycles(specs_by_id, errors)
@@ -237,7 +237,7 @@ class TestVerifySpecsIntegration(unittest.TestCase):
             res_strict = run_verifier(tmp, "--strict")
             self.assertNotEqual(res_strict.returncode, 0)
             self.assertIn("BOOTSTRAP.md: File still exists", res_strict.stderr)
-            self.assertNotIn("Mapped component 'docs/spec/components/<id>.md' does not exist", res_strict.stderr)
+            self.assertNotIn("Mapped component 'docs/specs/components/<id>.md' does not exist", res_strict.stderr)
 
     def test_frontmatter_h1_and_ssot_errors(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_str:
@@ -245,7 +245,7 @@ class TestVerifySpecsIntegration(unittest.TestCase):
             setup_isolated_repo(tmp, strict_ready=True)
             self.assertEqual(run_verifier(tmp, "--sync").returncode, 0)
 
-            bad_comp = tmp / "docs/spec/components/bad.md"
+            bad_comp = tmp / "docs/specs/components/bad.md"
             bad_comp.write_text(
                 """---
 spec_id: component-auth
@@ -282,7 +282,7 @@ dependencies:
             self.assertEqual(res_pass.returncode, 0, res_pass.stderr)
 
             # 2. Stable component with non-existent target_files fails
-            auth_path = tmp / "docs/spec/components/auth.md"
+            auth_path = tmp / "docs/specs/components/auth.md"
             orig_auth = auth_path.read_text(encoding="utf-8")
             auth_path.write_text(orig_auth.replace("status: draft", "status: stable"), encoding="utf-8")
             res_stable_fail = run_verifier(tmp, "--strict")
@@ -303,15 +303,15 @@ dependencies:
         with tempfile.TemporaryDirectory() as tmp_str:
             tmp = Path(tmp_str)
             setup_isolated_repo(tmp, strict_ready=True)
-            auth_text = (tmp / "docs/spec/components/auth.md").read_text(encoding="utf-8")
-            extra_path = tmp / "docs/spec/components/extra.md"
+            auth_text = (tmp / "docs/specs/components/auth.md").read_text(encoding="utf-8")
+            extra_path = tmp / "docs/specs/components/extra.md"
             extra_path.write_text(
                 auth_text.replace("auth", "extra").replace("認証", "追加"),
                 encoding="utf-8",
             )
             self.assertEqual(run_verifier(tmp, "--sync").returncode, 0)
 
-            router_text = (tmp / "docs/spec/spec-router.md").read_text(encoding="utf-8")
+            router_text = (tmp / "docs/specs/spec-router.md").read_text(encoding="utf-8")
             self.assertIn('component-auth["components/auth.md"]', router_text)
             self.assertIn('component-extra["components/extra.md"]', router_text)
             self.assertNotIn('component-template["components/_template.md"]', router_text)
