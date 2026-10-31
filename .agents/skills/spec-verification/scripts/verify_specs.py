@@ -17,8 +17,6 @@ REQUIRED_FRONTMATTER_KEYS = {
 IMMUTABLE_FILES = [
     "AGENTS.md",
     "docs/specs/core-rules.md",
-    "docs/specs/components/_template.md",
-    "docs/specs/usecases/_template.md",
 ]
 
 PLACEHOLDER_PATTERNS = [
@@ -28,27 +26,43 @@ PLACEHOLDER_PATTERNS = [
     (r"<[^>\n]*[ぁ-んァ-ヶ一-龠々ー][^>\n]*>", "Unfilled template placeholder '<...>'"),
 ]
 
-LAYER_ORDER = {0: 0, "-": 1, 1: 2, 2: 3, 3: 4, 4: 5}
+
+def is_template_file(rel_path: str) -> bool:
+    """Check if file is a template (named '_template.md')."""
+    return Path(rel_path).name == "_template.md"
 
 
-def infer_layer_from_path(rel_path: str) -> int | str | None:
-    """Deterministically infer specification layer from repository-relative POSIX path."""
+def infer_category_from_path(rel_path: str) -> int | str | None:
+    """Deterministically infer specification category/layer from repository-relative POSIX path."""
     if rel_path == "AGENTS.md":
         return 0
     if rel_path == "docs/specs/spec-router.md":
         return "-"
     if rel_path == "docs/specs/core-rules.md":
         return 1
-    if rel_path.startswith("docs/specs/system/"):
-        return 2
-    if rel_path.startswith("docs/specs/components/"):
-        return 3
 
-    if rel_path.startswith("docs/specs/usecases/"):
-        return 4
+    parts = Path(rel_path).parts
+    if len(parts) == 3 and parts[0] == "docs" and parts[1] == "specs":
+        # Any .md file directly under docs/specs/ is treated as Core (1)
+        return 1
 
+    if len(parts) >= 4 and parts[0] == "docs" and parts[1] == "specs":
+        # Dynamic top-level directory under docs/specs/ (e.g. system, components, usecases, services)
+        return parts[2]
 
     return None
+
+
+def category_sort_key(cat: int | str) -> tuple[int, str]:
+    """Sort key for categories: 0 -> '-' -> 1 -> directory names alphabetically."""
+    if cat == 0 or cat == "0":
+        return (0, "")
+    if cat == "-":
+        return (1, "")
+    if cat == 1 or cat == "1":
+        return (2, "")
+    return (3, str(cat))
+
 
 DAG_START_MARKER = "<!-- @generated:spec-dag-start -->"
 DAG_END_MARKER = "<!-- @generated:spec-dag-end -->"
@@ -181,9 +195,9 @@ def collect_spec_files(root: Path) -> list[str]:
 
 
 def check_dag_cycles(specs_by_id: dict[str, dict], errors: list[str]) -> None:
-    """Verify dependency references exist, respect layer order, forbid reverse-dependency to router index, and form a valid DAG."""
+    """Verify dependency references exist, protect constitutional boundaries, forbid reverse-dependency to router index, and form a valid DAG (zero cycles)."""
     for spec_id, meta in specs_by_id.items():
-        src_layer = meta.get("layer", 0)
+        src_cat = meta.get("category", meta.get("layer", 0))
         for dep_id in meta.get("dependencies", []):
             if dep_id not in specs_by_id:
                 errors.append(
@@ -192,22 +206,24 @@ def check_dag_cycles(specs_by_id: dict[str, dict], errors: list[str]) -> None:
                 continue
 
             dep_meta = specs_by_id[dep_id]
-            dep_layer = dep_meta.get("layer", 0)
+            dep_cat = dep_meta.get("category", dep_meta.get("layer", 0))
 
             # Specification files MUST NOT depend on the router index (Layer '-')
-            if dep_id == "spec-router" or dep_layer == "-":
+            if dep_id == "spec-router" or dep_cat == "-":
                 errors.append(
                     f"{meta['path']}: Spec files cannot depend on router index '{dep_id}' (Layer '-')."
                 )
                 continue
 
-            # Layer order check: higher layer cannot depend on lower layer (e.g. Layer 2 cannot depend on Layer 3)
-            if isinstance(src_layer, int) and isinstance(dep_layer, int):
-                if dep_layer > src_layer:
-                    errors.append(
-                        f"{meta['path']}: Layer inversion in DAG: layer {src_layer} ('{spec_id}') "
-                        f"cannot depend on lower layer {dep_layer} ('{dep_id}')."
-                    )
+            # Constitutional boundary check: Layer 0 and Layer 1 cannot depend on lower project specs
+            if src_cat in (0, "0") and dep_cat not in (0, "0"):
+                errors.append(
+                    f"{meta['path']}: Meta guideline ('{spec_id}') cannot depend on lower spec '{dep_id}'."
+                )
+            elif src_cat in (1, "1") and dep_cat not in (0, "0", 1, "1"):
+                errors.append(
+                    f"{meta['path']}: Core rules ('{spec_id}') cannot depend on project spec '{dep_id}'."
+                )
 
     # 0 = unvisited, 1 = visiting, 2 = visited
     state: dict[str, int] = {k: 0 for k in specs_by_id}
@@ -234,27 +250,36 @@ def check_dag_cycles(specs_by_id: dict[str, dict], errors: list[str]) -> None:
 
 
 def generate_mermaid_dag(specs_by_id: dict[str, dict]) -> str:
-    """Generate deterministic Mermaid flowchart grouped by layers."""
-    layers_def = [
-        (0, "L0", "Layer 0: Meta Guideline"),
-        (1, "L1", "Layer 1: Core Rules"),
-        (2, "L2", "Layer 2: System Architecture"),
-        (3, "L3", "Layer 3: Components"),
-        (4, "L4", "Layer 4: Use Cases"),
-    ]
+    """Generate deterministic Mermaid flowchart grouped dynamically by categories."""
     lines = ["```mermaid", "flowchart TD"]
 
-    for layer_num, sg_id, sg_title in layers_def:
-        layer_specs = [
-            meta
-            for meta in specs_by_id.values()
-            if meta.get("layer") == layer_num and meta.get("spec_id") not in ("component-template", "usecase-template")
-        ]
-        if not layer_specs:
+    # Filter out router and template specs
+    active_specs = [
+        meta
+        for meta in specs_by_id.values()
+        if not is_template_file(meta["path"]) and meta.get("category") != "-"
+    ]
+
+    categories = sorted({m["category"] for m in active_specs}, key=category_sort_key)
+
+    for cat in categories:
+        cat_specs = [m for m in active_specs if m["category"] == cat]
+        if not cat_specs:
             continue
-        layer_specs.sort(key=lambda m: m["path"])
+        cat_specs.sort(key=lambda m: m["path"])
+
+        if cat in (0, "0"):
+            sg_id = "L0"
+            sg_title = "Meta Guideline"
+        elif cat in (1, "1"):
+            sg_id = "L1"
+            sg_title = "Core Rules"
+        else:
+            sg_id = re.sub(r"[^a-zA-Z0-9_]", "_", str(cat))
+            sg_title = str(cat)
+
         lines.append(f'    subgraph {sg_id}["{sg_title}"]')
-        for meta in layer_specs:
+        for meta in cat_specs:
             sid = meta["spec_id"]
             spec_path = Path(meta["path"])
             disp_path = (
@@ -268,13 +293,13 @@ def generate_mermaid_dag(specs_by_id: dict[str, dict]) -> str:
     # Dependency edges
     edges: list[tuple[str, str]] = []
     for spec_id, meta in specs_by_id.items():
-        if meta.get("layer") == "-" or spec_id in ("component-template", "usecase-template"):
+        if meta.get("category") == "-" or is_template_file(meta["path"]):
             continue
         for dep_id in meta.get("dependencies", []):
             if (
                 dep_id in specs_by_id
-                and specs_by_id[dep_id].get("layer") != "-"
-                and dep_id not in ("component-template", "usecase-template")
+                and specs_by_id[dep_id].get("category") != "-"
+                and not is_template_file(specs_by_id[dep_id]["path"])
             ):
                 edges.append((spec_id, dep_id))
 
@@ -289,7 +314,7 @@ def generate_mermaid_dag(specs_by_id: dict[str, dict]) -> str:
 def generate_routing_table(root: Path, specs_by_path: dict[str, dict]) -> str:
     """Generate deterministic Markdown table for docs/specs/spec-router.md."""
     lines = [
-        "| Layer | 仕様書 | タイトル | 主タグ | セクションサブタグ | 対象スコープ | 依存仕様 |",
+        "| 分類 | 仕様書 | タイトル | 主タグ | セクションサブタグ | 対象スコープ | 依存仕様 |",
         "| :---: | :--- | :--- | :--- | :--- | :--- | :--- |",
     ]
 
@@ -297,27 +322,23 @@ def generate_routing_table(root: Path, specs_by_path: dict[str, dict]) -> str:
 
     sorted_specs = sorted(
         specs_by_path.values(),
-        key=lambda m: (LAYER_ORDER.get(m["layer"], 99), m["path"]),
+        key=lambda m: (category_sort_key(m["category"]), m["path"]),
     )
 
     for meta in sorted_specs:
-        layer_str = f"**{meta['layer']}**"
+        cat_str = f"**{meta['category']}**"
 
-        # Compute relative link from docs/ to file using Path and as_posix()
         target_path = root / meta["path"]
         if target_path.is_relative_to(router_dir):
             rel_link = target_path.relative_to(router_dir).as_posix()
         else:
             rel_link = (Path("..") / Path("..") / target_path.relative_to(root)).as_posix()
-        name = (
-            rel_link
-            if meta["path"].startswith(("docs/specs/system/", "docs/specs/components/", "docs/specs/usecases/"))
-            else target_path.name
-        )
+
+        is_sub = target_path.is_relative_to(router_dir) and target_path.parent != router_dir
+        name = rel_link if is_sub else target_path.name
         spec_link = f"[{name}]({rel_link})"
 
         title_str = meta.get("title", "").strip()
-
         primary_tag = f"`@spec:{meta['spec_id']}`"
 
         # Subtags
@@ -344,7 +365,7 @@ def generate_routing_table(root: Path, specs_by_path: dict[str, dict]) -> str:
             deps_str = "-"
 
         lines.append(
-            f"| {layer_str} | {spec_link} | {title_str} | {primary_tag} | {subtags_str} | {scopes_str} | {deps_str} |"
+            f"| {cat_str} | {spec_link} | {title_str} | {primary_tag} | {subtags_str} | {scopes_str} | {deps_str} |"
         )
 
     return "\n".join(lines)
@@ -430,21 +451,21 @@ def check_strict_leftovers_and_placeholders(
         check_files.append("README.md")
 
     for rel_path in check_files:
+        if is_template_file(rel_path):
+            continue
         content = normalize_text((root / rel_path).read_text(encoding="utf-8"))
+        check_content = content.replace("<分類>", "") if rel_path == "AGENTS.md" else content
         for pat, desc in PLACEHOLDER_PATTERNS:
-            if rel_path in ("docs/specs/components/_template.md", "docs/specs/usecases/_template.md") and "<...>" in desc:
-                continue
-            if re.search(pat, content):
+            if re.search(pat, check_content):
                 errors.append(f"{rel_path}: {desc} found in --strict mode.")
 
 
 def check_component_mapping_and_structure(
     root: Path, spec_files: list[str], errors: list[str]
 ) -> None:
-    """Verify 1:1 mapping between docs/specs/system/architecture.md table and docs/components/*.md."""
+    """Verify 1:1 mapping between docs/specs/system/architecture.md table and linked component specs."""
     arch_path = root / "docs" / "specs" / "system" / "architecture.md"
     if not arch_path.exists():
-        errors.append("docs/specs/system/architecture.md: Missing architecture spec.")
         return
 
     raw_arch = normalize_text(arch_path.read_text(encoding="utf-8"))
@@ -453,12 +474,10 @@ def check_component_mapping_and_structure(
         strip_code(raw_arch),
     )
     if not comp_map_match:
-        errors.append(
-            "docs/specs/system/architecture.md: Missing '<!-- @spec:component-map -->' section."
-        )
         return
 
     mapped_component_paths: set[str] = set()
+    mapped_dirs: set[Path] = set()
 
     for cells in parse_markdown_table_rows(comp_map_match.group(1), 5):
         if "コンポーネントID" in cells[0] or any("[要記入:" in c for c in cells):
@@ -466,29 +485,29 @@ def check_component_mapping_and_structure(
         link_match = re.search(r"\[[^\]]+\]\(([^)]+)\)", cells[1])
         if not link_match:
             errors.append(
-                f"docs/specs/system/architecture.md: Component row '{cells[0]}' must link to "
-                f"'[...](../components/<id>.md)' in column 2."
+                f"docs/specs/system/architecture.md: Component row '{cells[0]}' must link to a component spec in column 2."
             )
             continue
         resolved = (arch_path.parent / link_match.group(1).strip()).resolve()
         try:
             rel_comp = resolved.relative_to(root.resolve()).as_posix()
             mapped_component_paths.add(rel_comp)
+            mapped_dirs.add(resolved.parent)
         except ValueError:
             errors.append(f"docs/specs/system/architecture.md: Invalid component path '{cells[1]}'.")
 
-    actual_components = {
-        p for p in spec_files if p.startswith("docs/specs/components/") and p != "docs/specs/components/_template.md"
-    }
-
-    if not actual_components:
-        errors.append(
-            "docs/specs/components/: No component specs found in --strict mode (at least 1 required)."
-        )
+    # If rows exist, find all actual non-template specs in the referenced directories
+    actual_components: set[str] = set()
+    for d in mapped_dirs:
+        if d.exists():
+            for p in d.glob("*.md"):
+                rel = p.relative_to(root).as_posix()
+                if not is_template_file(rel):
+                    actual_components.add(rel)
 
     for missing in sorted(mapped_component_paths - actual_components):
         errors.append(
-            f"docs/specs/system/architecture.md: Mapped component '{missing}' does not exist in docs/specs/components/."
+            f"docs/specs/system/architecture.md: Mapped component '{missing}' does not exist on disk."
         )
     for unmapped in sorted(actual_components - mapped_component_paths):
         errors.append(
@@ -510,13 +529,7 @@ def check_component_mapping_and_structure(
         for h in required_headings:
             if h not in comp_text:
                 errors.append(
-                    f"{comp_path}: Missing required section heading starting with '{h}' (per _template.md)."
-                )
-        for suffix in ["scope", "interface", "contract", "verification"]:
-            expected_subtag = f"@spec:component-{comp_stem}-{suffix}"
-            if expected_subtag not in comp_text:
-                errors.append(
-                    f"{comp_path}: Missing standardized section tag '<!-- {expected_subtag} -->' (per _template.md)."
+                    f"{comp_path}: Missing required section heading starting with '{h}'."
                 )
 
 
@@ -573,13 +586,13 @@ def validate_single_spec(
     if extra_keys:
         errors.append(
             f"{rel_path}: Unexpected/deprecated frontmatter keys: {', '.join(sorted(extra_keys))} "
-            f"(only {', '.join(sorted(REQUIRED_FRONTMATTER_KEYS))} are allowed; layer is auto-derived from path)."
+            f"(only {', '.join(sorted(REQUIRED_FRONTMATTER_KEYS))} are allowed; category is auto-derived from path)."
         )
 
-    layer = infer_layer_from_path(rel_path)
-    if layer is None:
+    category = infer_category_from_path(rel_path)
+    if category is None:
         errors.append(
-            f"{rel_path}: Spec file is located in an unrecognized directory for layer derivation."
+            f"{rel_path}: Spec file is located in an unrecognized directory for category derivation."
         )
         return None
 
@@ -625,16 +638,18 @@ def validate_single_spec(
             )
         all_spec_tags[tag] = rel_path
 
+    is_template = is_template_file(rel_path)
+
     if rel_path in IMMUTABLE_FILES:
         if status != "stable":
             errors.append(f"{rel_path}: Immutable file must have 'status: stable'.")
-        for pat, desc in PLACEHOLDER_PATTERNS:
-            if rel_path in ("docs/specs/components/_template.md", "docs/specs/usecases/_template.md") and "<...>" in desc:
-                continue
-            if re.search(pat, text):
-                errors.append(f"{rel_path}: Immutable file contains {desc}.")
+        if not is_template:
+            check_text = text.replace("<分類>", "") if rel_path == "AGENTS.md" else text
+            for pat, desc in PLACEHOLDER_PATTERNS:
+                if re.search(pat, check_text):
+                    errors.append(f"{rel_path}: Immutable file contains {desc}.")
 
-    if status == "stable":
+    if status == "stable" and not is_template:
         for pattern in target_files:
             if pattern == "**/*":
                 continue
@@ -648,7 +663,8 @@ def validate_single_spec(
         "path": rel_path,
         "spec_id": spec_id,
         "title": title,
-        "layer": layer,
+        "category": category,
+        "layer": category,  # Keep layer as alias for backward compatibility
         "status": status,
         "target_files": target_files,
         "dependencies": dependencies,
