@@ -32,7 +32,7 @@ flowchart TD
 ## 1. 調査と実装計画書（Artifact: implementation_plan.md）
 
 * **調査と要求分析**:
-  * 関連仕様書（`docs/spec-router.md`）やコードを調査し、変更対象と受入条件を特定する。
+  * 関連仕様書（`docs/spec/spec-router.md`）やコードを調査し、変更対象と受入条件を特定する。
 * **実装計画書の Artifact 出力**:
   * `write_file` を用い、`<appDataDir>\brain\<conversation-id>\implementation_plan.md` に計画書を作成する。
   * `ArtifactMetadata` には `UserFacing: true`, `RequestFeedback: true` を指定し、UI上に「Proceed」ボタンを表示させる。

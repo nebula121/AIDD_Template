@@ -33,7 +33,7 @@ flowchart LR
 
 <!-- @spec:component-map -->
 
-本表の各行は `docs/components/<id>.md` の個別仕様書と **1対1（全単射）** で対応する (**MUST**)。
+本表の各行は `docs/spec/components/<id>.md` の個別仕様書と **1対1（全単射）** で対応する (**MUST**)。
 
 | コンポーネントID | 個別仕様書 | 対象コードパス (`target_files`) | 単一責務の定義 | 依存先コンポーネント |
 | :--- | :--- | :--- | :--- | :--- |
